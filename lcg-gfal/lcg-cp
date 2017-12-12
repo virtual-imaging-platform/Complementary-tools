@@ -1,0 +1,178 @@
+#!/bin/sh
+#set -x
+set -o errexit -o noclobber -o nounset
+
+# This script transforms a lcg-cp command to an equivalent gfal-copy
+# command.
+#
+# - The output of the gfal-copy command is logged to the file defined
+#   in the constant LOG_FILE if it exists and is writable.  If not, it
+#   will output to stdout and stderr.  Errors in the input parameters
+#   are always logged to stderr.  Modify the constant LOG_FILE at the
+#   start of the script.
+#
+# - Environment variables LFC_HOST, LCG_GFAL_INFOSYS and
+#   X509_USER_PROXY must be defined and have sensible values.
+
+# Constants
+
+LOG_FILE=/home/vip/gfal/gfal.log
+PYTHON=/bin/python
+GFAL_COPY=/bin/gfal-copy
+
+# End of constants
+
+INPUT_ARGS="$0 $*"
+
+show_help() {
+    echo "This script transforms a lcg-cp command to an equivalent gfal-copy command."
+    echo "$0 [ --config config_file ] [ -h,--help ] [ -n nbstreams ] [ -D,--defaultsetype defaulttype ] [ -T,--srcsetype srctype ] [ -U,--dstsetype dsttype ] [ -s,--sst src_spacetokendesc ] [ -S,--dst dest_spacetokendesc ] [ --connect-timeout conntimeout ] [ --sendreceive-timeout sndtimeout ] [ --bdii-timeout bdiitimeout ] [ --srm-timeout srmtimeout ] [ --vo virtual_organization ] [ --checksum-type cksmtype ] [ --checksum ] [ -b,--nobdii ] [ -v,--verbose ] [ --version ] [ --src-protocols protocol_list ] [ --dst-protocols protocol_list ] src_file dest_file"
+}
+
+params=`getopt --options hn:D:T:U:s:S:bv --long config:,help,defaultsetype:,srcsetype:,dstsetype:,sst:,dst:,connect-timeout:,sendreceive-timeout:,bdii-timeout:,srm-timeout:,vo:,checksum-type:,checksum,nobdii,verbose,version,src-protocols:,dst-protocols: --name $0 -- $@`
+eval set -- "$params"
+
+GFAL_OPTIONS=""
+VO="${LCG_GFAL_VO:-}"
+TOTAL_TIMEOUTS=0
+
+while true
+do
+    case "$1" in
+        --config)
+            CONFIG_FILE="$2"
+            echo "WARNING: $1 option is ignored" >&2
+            shift 2
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        -n)
+            GFAL_OPTIONS="$GFAL_OPTIONS -n $2"
+            shift 2
+            ;;
+        -D|--defaultsetype)
+            DEFAULT_SETYPE="$2"
+            echo "WARNING: $1 option is ignored" >&2
+            shift 2
+            ;;
+        -T|--srcsetype)
+            SRC_SETYPE="$2"
+            echo "WARNING: $1 option is ignored" >&2
+            shift 2
+            ;;
+        -U|--dstsetype)
+            DST_SETYPE="$2"
+            echo "WARNING: $1 option is ignored" >&2
+            shift 2
+            ;;
+        -s|--sst)
+            GFAL_OPTIONS="$GFAL_OPTIONS -s $2"
+            shift 2
+            ;;
+        -S|--dst)
+            GFAL_OPTIONS="$GFAL_OPTIONS -S $2"
+            shift 2
+            ;;
+        --connect-timeout)
+            TOTAL_TIMEOUTS=$(($TOTAL_TIMEOUTS + $2))
+            shift 2
+            ;;
+        --sendreceive-timeout)
+            TOTAL_TIMEOUTS=$(($TOTAL_TIMEOUTS + $2))
+            GFAL_OPTIONS="$GFAL_OPTIONS -T $2"
+            shift 2
+            ;;
+        --bdii-timeout)
+            TOTAL_TIMEOUTS=$(($TOTAL_TIMEOUTS + $2))
+            shift 2
+            ;;
+        --srm-timeout)
+            TOTAL_TIMEOUTS=$(($TOTAL_TIMEOUTS + $2))
+            shift 2
+            ;;
+        --vo)
+            VO="$2"
+            echo "WARNING: $1 option is ignored" >&2
+            shift 2
+            ;;
+        --checksum-type)
+            GFAL_OPTIONS="$GFAL_OPTIONS -K $2"
+            shift 2
+            ;;
+        --checksum)
+            echo "WARNING: $1 option is ignored" >&2
+            shift
+            ;;
+        -b|--nobdii)
+            echo "WARNING: $1 option is ignored" >&2
+            shift
+            ;;
+        -v|--verbose)
+            GFAL_OPTIONS="$GFAL_OPTIONS -v"
+            shift
+            ;;
+        --version)
+            ${GFAL_COPY} --version
+            exit 0
+            ;;
+        --src-protocols)
+            SRC_PROTOCOLS="$2"
+            echo "WARNING: $1 option is ignored" >&2
+            shift 2
+            ;;
+        --dst-protocols)
+            SRC_PROTOCOLS="$2"
+            echo "WARNING: $1 option is ignored" >&2
+            shift 2
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            echo "ERROR: unknown option: $1" >&2
+            exit 1
+            ;;
+    esac
+done
+
+if [ $# -ne 2 ]
+then
+    echo "Exactly 2 arguments are needed.  Got $#." >&2
+    exit 1
+fi
+
+if [ "$TOTAL_TIMEOUTS" -gt 0 ]
+then
+    GFAL_OPTIONS="$GFAL_OPTIONS -t $TOTAL_TIMEOUTS"
+fi
+
+SRC=`echo $1 | cut -d: -f 2`
+DST=`echo $2 | cut -d: -f 2`
+
+COMMAND="env -i \
+    LCG_GFAL_INFOSYS=${LCG_GFAL_INFOSYS} \
+    X509_USER_PROXY=${X509_USER_PROXY} \
+    $PYTHON $GFAL_COPY $GFAL_OPTIONS lfc://${LFC_HOST}$SRC $DST"
+
+run_command() {
+    COMMAND=$1
+    INPUT_ARGS=$2
+    echo "----------------------------------------------------------"
+    echo "`date` $0 -> gfal-copy"
+    echo "--"
+    echo "$INPUT_ARGS"
+    echo "=>"
+    echo "$COMMAND"
+    echo "--"
+    eval "$COMMAND"
+}
+
+if [ -w $LOG_FILE ]
+then
+    run_command "$COMMAND" "$INPUT_ARGS" >> $LOG_FILE 2>&1
+else
+    run_command "$COMMAND" "$INPUT_ARGS"
+fi
