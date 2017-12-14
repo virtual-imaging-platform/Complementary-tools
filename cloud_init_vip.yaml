@@ -13,7 +13,7 @@
 # image: CentOS-7-x86_64-GenericCloud-1608
 # image id: 5150b27f-42eb-4114-8bec-d8b195ea50e8
 # Complete command:
-# openstack --insecure server create --key-name cloudkey --image CentOS-7-x86_64-GenericCloud-1608 --flavor m1.small --nic net-id=d487a5d6-7ae3-4a77-a735-c62662da3660 --user-data ~/datas/vip/cloud_init_vip.yaml pwassong-test
+# openstack --insecure server create --key-name cloudkey --image CentOS-7-x86_64-GenericCloud-1608 --flavor m1.small --nic net-id=d487a5d6-7ae3-4a77-a735-c62662da3660 --user-data ~/datas/vip/cloud_init_vip.yaml vip-test
 
 # !!!!!!!!!!!!!!!!!!!!
 # Mis en commentaires pour tests :
@@ -48,7 +48,13 @@ users:
     shell: /bin/bash
     sudo: ALL=(ALL) NOPASSWD:ALL
     ssh_authorized_keys:
-      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDGMc6IUHXFpUSL0wOVd6/CtcKPmqilFt3CbQhv6R7chrjga01a4w0yv2HjALxVPMtB+2Xj4W/raq3CiHFe8cvtAy3oKy6SnwRNwgCiSjK63eqQNM5Cz250v3DxH3HZ8UEpLCmYRU4+Cirv/17jAocT19TlU7RlGq7PHYcsK0F++SIQ9hM1YJmoSIXH8QwjgEriE4Tz1WmH37b8KfasbrcEaxRYaRNz62CgQqAgwNLmItLatsG5jfJcoqZ5NKgh/R7lnrLohcUvR2os6c9aJbs3NoUSlkIaBP/NQzfMx38uqHqShxFEzT4flZ07SmQvCdXoZbTGA6aPAfx/89cDsezz pwassong@sbgat401
+      - MODIFY
+
+# The 2 lines below (hostname and fqdn) and the content of the file
+# global_configuration.txt (the first one in the section write_files)
+# should be edited to adapt to your server.  All values should
+# probably be changed, not only those marked MODIFY.  No configuration
+# is needed in the rest of this file.
 
 # Update the variable HOSTNAME in the file global_configuration.txt,
 # just a few lines below.
@@ -56,8 +62,6 @@ hostname: sbgvm-151-176
 fqdn: sbgvm-151-176.in2p3.fr
 manage_etc_hosts: true
 
-# Create some config files.  The first one should be edited to adapt
-# to your server.
 # Write file is done BEFORE the creation of users and groups.  So we
 # can't set the owners to vip:vip (which does not yet exist).
 write_files:
@@ -70,22 +74,27 @@ write_files:
       SMTP_SERVER=sbgsmtp1.in2p3.fr
       ADMIN_FIRST_NAME=Administrator
       ADMIN_LAST_NAME=IPHC
-      ADMIN_EMAIL=pascal.wassong@iphc.cnrs.fr
-      MYPROXY_USER="/O=GRID-FR/C=FR/O=CNRS/OU=IPHC/CN=Pascal Wassong"
-      MYPROXY_PASSWORD=tototo
-      PASSPHRASE="pou joujou hibou genou chou caillou bijou"
+      ADMIN_EMAIL=MODIFY
+      MYPROXY_USER=MODIFY
+      MYPROXY_PASSWORD=MODIFY
+      PASSPHRASE=MODIFY
       VO_NAME=biomed
       VO_ROOT=/grid/biomed
       LFC_HOST=lfc-biomed.in2p3.fr
       LFC_PORT=5010
       LCG_GFAL_INFOSYS_HOST=cclcgtopbdii02.in2p3.fr
       LCG_GFAL_INFOSYS_PORT=2170
-      LFC_VIP_ROOT_DIR=/grid/biomed/pwassong/vip/data
+      LFC_VIP_ROOT_DIR=MODIFY
       SE_LIST=sbgse1.in2p3.fr
       DB_ROOT_PASSWD="4fa59a1d7adc7e448328f7b6f9a08366"
       DB_VIP_USERNAME=vip
-      DB_VIP_PASSWORD=davipdbadminpiwee
+      DB_VIP_PASSWORD=MODIFY
     permissions: '0600'
+
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# There is nothing to modify by the user below this line.  There are
+# some "modify" text, but these will be updated by scripts.
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   - path: /home/vip/.bashrc
     permissions: '0644'
