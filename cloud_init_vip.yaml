@@ -1386,14 +1386,14 @@ write_files:
       #!/bin/sh
       source /root/global_configuration.txt
       TMP_FILE=/tmp/create-lsc-file-and-voms-$$
-      wget -q http://operations-portal.egi.eu/xml/voIDCard/public/voname/$VO -O ${TMP_FILE}
+      wget -q http://operations-portal.egi.eu/xml/voIDCard/public/voname/$VO_NAME -O ${TMP_FILE}
       VOMS_HOSTNAME=`xmllint --xpath '/VoDump/IDCard/gLiteConf/VOMSServers/VOMS_Server/hostname/text()' ${TMP_FILE}`
       VOMS_PORT=`xmllint --xpath 'string(/VoDump/IDCard/gLiteConf/VOMSServers/VOMS_Server/@VomsesPort)' ${TMP_FILE}`
       DN=`xmllint --xpath '/VoDump/IDCard/gLiteConf/VOMSServers/VOMS_Server/X509Cert/DN/text()' ${TMP_FILE}`
       CA_DN=`xmllint --xpath '/VoDump/IDCard/gLiteConf/VOMSServers/VOMS_Server/X509Cert/CA_DN/text()' ${TMP_FILE}`
 
-      mkdir -p /etc/grid-security/vomsdir/$VO
-      FILENAME=/etc/grid-security/vomsdir/$VO/${VOMS_HOSTNAME}.lsc
+      mkdir -p /etc/grid-security/vomsdir/$VO_NAME
+      FILENAME=/etc/grid-security/vomsdir/$VO_NAME/${VOMS_HOSTNAME}.lsc
       echo $DN > ${FILENAME}
       echo ${CA_DN} >> ${FILENAME}
 
