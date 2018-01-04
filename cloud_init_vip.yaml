@@ -1713,7 +1713,7 @@ runcmd:
   ###############################
   # Tomcat : needs grida, sma, httpd and myproxy-server
   - echo "-------------- tomcat --------------"
-  - TOMCAT_VERSION="8.5.23"
+  - TOMCAT_VERSION="8.5.24"
   - curl -sS http://mirror.ibcp.fr/pub/apache/tomcat/tomcat-8/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz | tar -C /home/vip -zxf -
   - wget -q https://github.com/virtual-imaging-platform/VIP-portal/releases/download/1.21/vip-portal-1.21.war -O /home/vip/apache-tomcat-${TOMCAT_VERSION}/webapps/vip-portal-1.21.war
   - chown -R vip:vip /home/vip/apache-tomcat-${TOMCAT_VERSION}
