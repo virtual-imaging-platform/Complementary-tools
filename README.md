@@ -47,6 +47,16 @@ chown -R vip:vip /home/vip/.globus
 chmod 700 /home/vip/.globus
 ```
 
+#### Machine certificate
+
+An auto-signed certificate has been created, used by apache https.  It
+must be replaced by a correct certificate.  The files must be replaced
+in the directories:
+```shell
+/etc/pki/tls/private/<hostname>.key
+/etc/pki/tls/certs/<hostname>.crt
+```
+
 #### Final commands
 
 Run the command as root:
