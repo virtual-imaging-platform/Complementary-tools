@@ -946,8 +946,35 @@ runcmd:
   - yum -y -q install java-1.7.0-openjdk
 
   ###############################
+  # Myproxy server
+  - echo "-------------- Myproxy server --------------"
+  - yum -y -q install myproxy myproxy-server
+  - /root/sbin/update_myproxy_server_config.sh
+  - systemctl restart myproxy-server
+  # The certificates in /etc/grid-security/myproxy must be installed
+  # manually.
+  # - chown -R myproxy /etc/grid-security/myproxy
+  # - chmod 600 /etc/grid-security/myproxy/*key.pem
+
+  - /root/sbin/create-lsc-file-and-voms.sh
+
+  # Edit /etc/myproxy-server.config ??
+  # put my cert into ~vip/.globus
+  # run command (with vip user) so that my certs are used
+  # myproxy-init -p 7512 -v -s sbgsol.in2p3.fr -d -c 23
+  - chown vip:vip /home/vip/robotcert/uploadRobot.sh # write_files cannot do it.
+  - echo ${PASSPHRASE} > /home/vip/robotcert/passphrase.txt
+  - chown vip:vip /home/vip/robotcert/passphrase.txt
+  - chmod 400 /home/vip/robotcert/passphrase.txt
+  - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/robotcert/uploadRobot.sh
+  - echo "30 7,23 * * * /home/vip/robotcert/uploadRobot.sh" >> /var/spool/cron/vip
+  - systemctl enable myproxy-server.service
+  - systemctl start myproxy-server.service
+
+  ###############################
   # Create auto-signed certificate => to be replaced by correct
   # certificate.  Before httpd, which needs the certificate.
+  # After myproxy installation, so that myproxy user exists.
   - echo "-------------- autosigned certificates --------------"
   - HOSTNAME_FILE=`echo ${HOSTNAME} | sed -e 's/\./_/g'`
   - TMP_FILE=/tmp/server-$$.csr
@@ -1057,32 +1084,6 @@ runcmd:
   - yum -y -q install fetch-crl
   - systemctl enable fetch-crl-cron
   - systemctl start fetch-crl-cron
-
-  ###############################
-  # Myproxy server
-  - echo "-------------- Myproxy server --------------"
-  - yum -y -q install myproxy myproxy-server
-  - /root/sbin/update_myproxy_server_config.sh
-  - systemctl restart myproxy-server
-  # The certificates in /etc/grid-security/myproxy must be installed
-  # manually.
-  # - chown -R myproxy /etc/grid-security/myproxy
-  # - chmod 600 /etc/grid-security/myproxy/*key.pem
-
-  - /root/sbin/create-lsc-file-and-voms.sh
-
-  # Edit /etc/myproxy-server.config ??
-  # put my cert into ~vip/.globus
-  # run command (with vip user) so that my certs are used
-  # myproxy-init -p 7512 -v -s sbgsol.in2p3.fr -d -c 23
-  - chown vip:vip /home/vip/robotcert/uploadRobot.sh # write_files cannot do it.
-  - echo ${PASSPHRASE} > /home/vip/robotcert/passphrase.txt
-  - chown vip:vip /home/vip/robotcert/passphrase.txt
-  - chmod 400 /home/vip/robotcert/passphrase.txt
-  - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/robotcert/uploadRobot.sh
-  - echo "30 7,23 * * * /home/vip/robotcert/uploadRobot.sh" >> /var/spool/cron/vip
-  - systemctl enable myproxy-server.service
-  - systemctl start myproxy-server.service
 
   ###############################
   # GRIDA (un simple .jar java8)
