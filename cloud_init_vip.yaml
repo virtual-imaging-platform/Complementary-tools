@@ -533,8 +533,8 @@ write_files:
       User=vip
       Type=simple
       WorkingDirectory=/home/vip
-      Environment=PYTHONPATH=/home/vip/DIRAC
-      ExecStart=/bin/python /home/vip/DIRAC/DIRAC/WorkloadManagementSystem/Service/GASWServiceHandler.py
+      Environment=PYTHONPATH=/var/www/cgi-bin/m2Server-gasw3/dirac
+      ExecStart=/bin/python /var/www/cgi-bin/m2Server-gasw3/dirac/DIRAC/WorkloadManagementSystem/Service/GASWServiceHandler.py
     permissions: '0664'
 
   - path: /root/sbin/update-conf.sh
@@ -593,7 +593,7 @@ write_files:
       s/export LFC_HOST=.*/export LFC_HOST=${LFC_HOST}/
       s/export LCG_GFAL_INFOSYS=.*/export LCG_GFAL_INFOSYS=${LCG_GFAL_INFOSYS_HOST}:${LCG_GFAL_INFOSYS_PORT}/
       s#export ROBOT_PROXY=.*#export ROBOT_PROXY=/var/www/html/workflows/dirac-robot-${VO}#
-      s#source \${MOTEUR_HOME}/dirac-client/.*#source /home/vip/DIRAC/bashrc \&>/tmp/dirac-env1.err#
+      s#source \${MOTEUR_HOME}/dirac-client/.*#source /var/www/cgi-bin/m2Server-gasw3/dirac/bashrc \&>/tmp/dirac-env1.err#
       EOF
       sed -i -f ${TMP_FILE} /var/www/cgi-bin/m2Server-gasw3/env.sh
       rm ${TMP_FILE}
@@ -1126,11 +1126,12 @@ runcmd:
   ###############################
   # Dirac
   - echo "-------------- dirac --------------"
-  - mkdir -p /home/vip/dirac
-  - wget -O /home/vip/dirac/dirac-install --no-check-certificate -np https://raw.github.com/DIRACGrid/DIRAC/integration/Core/scripts/dirac-install.py
-  - chmod +x /home/vip/dirac/dirac-install
-  - cd /home/vip/dirac && ./dirac-install -V gridfr
-  - rm -f /home/vip/dirac/dirac-install
+  - DIRAC_INSTALL_DIR=/var/www/cgi-bin/m2Server-gasw3/dirac
+  - mkdir -p ${DIRAC_INSTALL_DIR}
+  - wget -O ${DIRAC_INSTALL_DIR}/dirac-install --no-check-certificate -np https://raw.github.com/DIRACGrid/DIRAC/integration/Core/scripts/dirac-install.py
+  - chmod +x ${DIRAC_INSTALL_DIR}/dirac-install
+  - cd ${DIRAC_INSTALL_DIR} && ./dirac-install -V gridfr
+  - rm -f ${DIRAC_INSTALL_DIR}/dirac-install
   # EDIT : configure VO
 
   # EDIT : install GASWServiceHandler (see GASWServiceHandler.service
@@ -1147,7 +1148,9 @@ runcmd:
   - cd /home/vip/vincent
 
   - mkdir -p /var/www/cgi-bin /var/www/prod
-  - mv m2Server-gasw3 /var/www/cgi-bin
+  # The directory m2Server-gasw3 is already created when installing dirac.
+  - mv m2Server-gasw3/* /var/www/cgi-bin/m2Server-gasw3
+  - mv m2Server-gasw3/.[a-z]* /var/www/cgi-bin/m2Server-gasw3
 
   # Update /var/www/cgi-bin/m2Server-gasw3/env.sh
   - /root/sbin/update_env_sh.sh
@@ -1185,6 +1188,7 @@ runcmd:
 
   # Leave directory /home/bin/vincent before removing it.
   - cd /root
+  - rmdir /home/vip/vincent/m2Server-gasw3
   - rmdir /home/vip/vincent
 
   - mkdir -p /var/www/html/workflows
