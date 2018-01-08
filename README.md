@@ -59,12 +59,21 @@ in the directories:
 
 #### Final commands
 
-Run the command as root:
+Create a proxy with the voms extension:
 ```shell
 /root/sbin/renew_voms_for_moteur.sh >> /root/cron-renew-voms.log 2>&1
 ```
 
-Run the command as vip:
+Configure dirac vomsdir.  Replace `<VO_NAME>` with the name of the VO
+that you have configured in the `cloud_init_vip.yaml` file, eg
+`biomed`.
+```shell
+cd /var/www/cgi-bin/m2Server-gasw3/dirac
+export X509_USER_PROXY=/var/www/html/workflows/dirac-robot-<VO_NAME>
+scripts/dirac-configure defaults-gridfr.cfg
+```
+
+Initialise myproxy the first time:
 ```shell
 /home/vip/robotcert/uploadRobot.sh
 ```
