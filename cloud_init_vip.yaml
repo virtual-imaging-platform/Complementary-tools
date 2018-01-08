@@ -592,14 +592,18 @@ write_files:
       cat > ${TMP_FILE} <<EOF
       s/export LFC_HOST=.*/export LFC_HOST=${LFC_HOST}/
       s/export LCG_GFAL_INFOSYS=.*/export LCG_GFAL_INFOSYS=${LCG_GFAL_INFOSYS_HOST}:${LCG_GFAL_INFOSYS_PORT}/
-      s#export ROBOT_PROXY=.*#export ROBOT_PROXY=/var/www/html/workflows/dirac-robot-${VO}#
+      s#export ROBOT_PROXY=.*#export ROBOT_PROXY=/var/www/html/workflows/dirac-robot-${VO_NAME}#
       s#source \${MOTEUR_HOME}/dirac-client/.*#source /var/www/cgi-bin/m2Server-gasw3/dirac/bashrc \&>/tmp/dirac-env1.err#
       EOF
       sed -i -f ${TMP_FILE} /var/www/cgi-bin/m2Server-gasw3/env.sh
       rm ${TMP_FILE}
-      echo "export PATH=$PATH:/usr/share/lcgBundles/Linux_x86_64_glibc-2.12/bin" >> /var/www/cgi-bin/m2Server-gasw3/env.sh
-      echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/share/lcgBundles/Linux_x86_64_glibc-2.12/lib" >> /var/www/cgi-bin/m2Server-gasw3/env.sh
-      echo "export PATH=/var/www/cgi-bin/m2Server-gasw3/bin:$PATH" >> /var/www/cgi-bin/m2Server-gasw3/env.sh
+      cat >> /var/www/cgi-bin/m2Server-gasw3/env.sh <<EOF
+
+      # Give access to lcg-* binaries.
+      #export PATH=\$PATH:/usr/share/lcgBundles/Linux_x86_64_glibc-2.12/bin
+      #export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/share/lcgBundles/Linux_x86_64_glibc-2.12/lib
+      export PATH=/var/www/cgi-bin/m2Server-gasw3/bin:\$PATH
+      EOF
     permissions: '0744'
 
   - path: /root/sbin/update_workflow_agent_conf.sh
