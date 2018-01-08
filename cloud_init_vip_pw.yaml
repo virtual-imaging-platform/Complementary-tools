@@ -1,0 +1,1259 @@
+#cloud-config
+# cloud_init_vip.yaml
+# vim: syntax=yaml
+
+# This image is used by FG_Sol project to host its VIP portal from:
+# https://github.com/virtual-imaging-platform/VIP-portal
+
+# Update the content of the configuration file
+# "/root/global_configuration.txt" to your server.  This is the first
+# file created by the "write_files" entry below.
+
+# flavor: m1.small
+# image: CentOS-7-x86_64-GenericCloud-1608
+# image id: 5150b27f-42eb-4114-8bec-d8b195ea50e8
+# Complete command:
+# openstack --insecure server create --key-name cloudkey --image CentOS-7-x86_64-GenericCloud-1608 --flavor m1.small --nic net-id=d487a5d6-7ae3-4a77-a735-c62662da3660 --user-data ~/datas/vip/cloud_init_vip.yaml vip-test
+
+# !!!!!!!!!!!!!!!!!!!!
+# Mis en commentaires pour tests :
+#
+# Vers le debut de runcmd :
+#  - yum -y update
+#  - yum -y upgrade
+#
+# => Generation d'un certificat auto-signe.  A remplacer par un bon
+#    certificat.  Il est utilise par httpd.
+# !!!!!!!!!!!!!!!!!!!!
+
+
+
+# Add EPEL repo
+yum_repos:
+  epel-release:
+    baseurl: http://download.fedoraproject.org/pub/epel/7/$basearch
+    enabled: true
+    failovermethod: priority
+    gpgcheck: true
+    gpgkey: https://download.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7
+    name: Extra Packages for Enterprise Linux 7 - Release
+
+# Add users & groups
+groups:
+  - vip
+
+users:
+  - name: vip
+    primary-group: vip
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDGMc6IUHXFpUSL0wOVd6/CtcKPmqilFt3CbQhv6R7chrjga01a4w0yv2HjALxVPMtB+2Xj4W/raq3CiHFe8cvtAy3oKy6SnwRNwgCiSjK63eqQNM5Cz250v3DxH3HZ8UEpLCmYRU4+Cirv/17jAocT19TlU7RlGq7PHYcsK0F++SIQ9hM1YJmoSIXH8QwjgEriE4Tz1WmH37b8KfasbrcEaxRYaRNz62CgQqAgwNLmItLatsG5jfJcoqZ5NKgh/R7lnrLohcUvR2os6c9aJbs3NoUSlkIaBP/NQzfMx38uqHqShxFEzT4flZ07SmQvCdXoZbTGA6aPAfx/89cDsezz pwassong@sbgat401
+
+# The 2 lines below (hostname and fqdn) and the content of the file
+# global_configuration.txt (the first one in the section write_files)
+# should be edited to adapt to your server.  All values should
+# probably be changed, not only those marked MODIFY.  No configuration
+# is needed in the rest of this file.
+
+# Update the variable HOSTNAME in the file global_configuration.txt,
+# just a few lines below.
+hostname: sbgvm-151-176
+fqdn: sbgvm-151-176.in2p3.fr
+manage_etc_hosts: true
+
+# Write file is done BEFORE the creation of users and groups.  So we
+# can't set the owners to vip:vip (which does not yet exist).
+write_files:
+  # DB_ROOT_PASSWD is a random generated password.
+  # DB username and password are those given in the script vip.sql,
+  # which creates the user and the databases.
+  - path: /root/global_configuration.txt
+    content: |
+      HOSTNAME=sbgvm-151-176.in2p3.fr
+      SMTP_SERVER=sbgsmtp1.in2p3.fr
+      ADMIN_FIRST_NAME=Administrator
+      ADMIN_LAST_NAME=IPHC
+      ADMIN_EMAIL=pascal.wassong@iphc.cnrs.fr
+      MYPROXY_USER="/O=GRID-FR/C=FR/O=CNRS/OU=IPHC/CN=Pascal Wassong"
+      MYPROXY_PASSWORD=tototo
+      PASSPHRASE="pou joujou hibou genou chou caillou bijou"
+      VO_NAME=biomed
+      VO_ROOT=/grid/biomed
+      LFC_HOST=lfc-biomed.in2p3.fr
+      LFC_PORT=5010
+      LCG_GFAL_INFOSYS_HOST=cclcgtopbdii02.in2p3.fr
+      LCG_GFAL_INFOSYS_PORT=2170
+      LFC_VIP_ROOT_DIR=/grid/biomed/pwassong/vip/data
+      SE_LIST=sbgse1.in2p3.fr
+      DB_ROOT_PASSWD="4fa59a1d7adc7e448328f7b6f9a08366"
+      DB_VIP_USERNAME=vip
+      DB_VIP_PASSWORD=davipdbadminpiwee
+    permissions: '0600'
+
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# There is nothing to modify by the user below this line.  There are
+# some "modify" text, but these will be updated by scripts.
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  - path: /home/vip/.bashrc
+    permissions: '0644'
+    content: |
+      alias la='ls -lah'
+      alias lt='ls -lrt'
+      alias ..='cd ..'
+      alias -- -='cd -'
+      export LANG=fr_FR.UTF-8
+
+  - path: /home/vip/.bash_profile
+    permissions: '0644'
+    content: |
+      if [ -f ~/.bashrc ]; then
+        . ~/.bashrc
+      fi
+
+  - path: /home/vip/.bash_history
+    permissions: '0644'
+    content: |
+      sudo su -
+
+  - path: /root/.bashrc
+    permissions: '0644'
+    content: |
+      alias la='ls -lah'
+      alias lt='ls -lrt'
+      alias ..='cd ..'
+      alias -- -='cd -'
+      export LANG=fr_FR.UTF-8
+
+  - path: /root/.bash_profile
+    permissions: '0644'
+    content: |
+      if [ -f ~/.bashrc ]; then
+        . ~/.bashrc
+      fi
+
+  - path: /root/.bash_history
+    permissions: '0644'
+    content: |
+      less /var/log/cloud-init.log
+      tail -f /var/log/cloud-init.log
+      ~/sbin/status
+
+  - path: /etc/my.cnf.d/vip.cnf
+    content: |
+      [mysqld]
+      bind-address = 127.0.0.1
+      default-storage-engine = innodb
+      innodb_file_per_table
+      max_connections = 4096
+      #collation-server = utf8_general_ci
+      #character-set-server = utf8
+    permissions: '0644'
+
+  - path: /home/vip/.vip/vip.conf
+    content: |
+      # MariaDB
+      database.server.host = localhost
+      database.server.port = 3306
+
+      # VIP Admin account, automatically created, the password is set
+      # to "tototo" (the string below is the encoded form).  The
+      # account is not put in any group, it is added manually in
+      # "Support" group via DB surgery.
+      admin.first.name = <ADMIN_FIRST_NAME>
+      admin.last.name = <ADMIN_LAST_NAME>
+      admin.email = <ADMIN_EMAIL>
+      admin.institution = IPHC
+      admin.phone = N/A
+      admin.pass = 21291505ea7d2cc217ee680b1a611f4a
+
+      # VO info
+      vo.name=<VO_NAME>
+      vo.root=<VO_ROOT>
+
+      # MyProxy config
+      myproxy.host = <HOSTNAME>
+      myproxy.vo = <VO_NAME>
+      myproxy.port = 7512
+      myproxy.user = <MYPROXY_USER>
+      myproxy.pass = <MYPROXY_PASSWORD>
+      myproxy.lifetime = 86400
+      myproxy.min.hours = 12
+
+      mail.host = localhost
+      mail.transport.protocol = smtp
+      mail.from = <ADMIN_EMAIL>
+
+      grida.server.host = <HOSTNAME>
+      grida.server.port = 5006
+
+      # This is also for grida
+      # LFC pathes
+      datamanager.users.home = <LFC_VIP_ROOT_DIR>/users
+      datamanager.groups.home = <LFC_VIP_ROOT_DIR>/groups
+      # Local (on VIP server) path
+      datamanager.path = /home/vip/grida
+      datamanager.lfc.host = <LFC_HOST>
+      datamanager.lfc.port = <LFC_PORT>
+
+      # This looks unused in the code, they use engines with endpoint URIs,
+      # from a DB table.
+      # Workflow engine (local apache + CGI)
+      #moteur.host = http://sbgsol.in2p3.fr/cgi-bin/m2Server-gasw3/moteur_server
+      # TODO: HTTPS + localhost listening
+      #moteur.host = https://localhost:443/moteur_server
+      moteur.host = UNUSED
+
+      # Tomcat's $TOMCAT_HOME/conf/truststore.jks
+      truststore.file = MODIFY
+      truststore.password = MODIFY
+
+      workflows.directory = /var/www/html/workflows
+      workflows.db.host = localhost
+      workflows.db.port = 9012
+      workflows.exec.mode = ws
+      # TODO: check this is still needed
+      workflows.db.name = UNUSED
+
+      apache.host = localhost
+      apache.ssl.port = 443
+
+      cas.url = https://ng-cas.maatg.fr/pandora-gateway-sl-cas
+      cas.accounttype = Neuroimaging
+
+      # Mail redirection agent
+      sma.host = <HOSTNAME>
+      sma.port = 8084
+
+      simulation.max.beginner = 1
+      simulation.max.advanced = 20
+      simulation.max.platfrom = 25
+
+      query.classes = PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> select * from <http://e-ginseng.org/graph/ontology/semEHR> where {?x a rdfs:Class . ?x rdfs:label ?label}
+
+      expressLaneToVip.application.class = TestN4U
+      expressLaneToVip.upload.repository = /home/vip/expresslane2vip/uploads
+      expressLaneToVip.upload.deleteFile = yes
+
+      # Grida service
+      n4u.grida.server.host = <HOSTNAME>
+      n4u.grida.server.port = 5006
+
+      appletGatelab.classes =
+      #GateLab,GateLab Test
+      appletGatelabTest.classes =
+      #GateLab Test
+
+      # Do not let those be empty, put dummy entries
+      account.undesiredEmailDomains = t.com
+      account.undesiredCountries = cn
+
+      saml.trusted.certificates =
+      saml.accounttype = Neuroimaging
+
+      last.publication.update = 6
+
+      boutiques.upload.repository = /tmp/boutiques-cache
+      boutiques.upload.deleteFile = yes
+
+      ssh.publickey = ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAuNjIXlgjuBR+WfjGtkieecZfe/ZL6EyNJTbL14bn3/Soof0kFSshDJvFgSH1hNwMMU1hynLbzcEbLTyVMoGQKfQkq7mJPajy9g8878WCKxCRbXv3W1/HT9iab/qqt2dcRYnDEruHwgyELBhQuMAe2W2/mgjd7Y5PxE01bwDcenYl3cU3iJk1sAOHao6P+3xU6Ov+TD8K9aC0LzZpM+rzAmS9HOZ9nvzERExd7k4TUpyffQV9Dpb5jEnEViF3VHqplB8AbWDdcJbiVkUBUe4hQb7nmWP0kHl1+v5SQJ1B4mWCZ+35Rc/9b1GsmPnXg3qqhjeKbrim/NbcUwKr9NPWjQ== vip-services@kingkong.grid.creatis.insa-lyon.fr
+    permissions: '0644'
+
+  - path: /home/vip/.vip/vip.sql
+    content: |
+      # The following is mysql_secure_installation
+      DELETE FROM mysql.user WHERE User='';
+      DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
+      DROP DATABASE test;
+      DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%';
+
+      # VIP user
+      CREATE USER '<DB_VIP_USERNAME>'@'localhost' IDENTIFIED BY '<DB_VIP_PASSWORD>';
+
+      # Create the databases for VIP
+      # Charset cannot be utf8 characters as it takes 3 times the space (max
+      # DB row size is 64 kB)
+
+      CREATE DATABASE vip;
+      ALTER DATABASE vip CHARACTER SET=latin1;
+      GRANT ALL PRIVILEGES ON vip.* TO '<DB_VIP_USERNAME>'@'localhost';
+
+      CREATE DATABASE workflowsdb;
+      ALTER DATABASE workflowsdb CHARACTER SET=latin1;
+      GRANT ALL PRIVILEGES ON workflowsdb.* TO '<DB_VIP_USERNAME>'@'localhost';
+
+      FLUSH PRIVILEGES;
+
+      use workflowsdb;
+
+      CREATE TABLE `Inputs` (
+        `workflow_id` varchar(255) NOT NULL DEFAULT '',
+        `path` varchar(255) NOT NULL DEFAULT '',
+        `processor` varchar(255) NOT NULL DEFAULT '',
+        `type` varchar(50) DEFAULT NULL,
+        PRIMARY KEY (`workflow_id`,`path`,`processor`)
+      ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+      CREATE TABLE `Outputs` (
+        `workflow_id` varchar(255) NOT NULL DEFAULT '',
+        `path` varchar(400) NOT NULL DEFAULT '',
+        `processor` varchar(255) NOT NULL DEFAULT '',
+        `type` varchar(50) DEFAULT NULL,
+        `port` varchar(255) DEFAULT NULL,
+        PRIMARY KEY (`workflow_id`,`path`,`processor`)
+      ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+      CREATE TABLE `Processors` (
+        `workflow_id` varchar(255) NOT NULL DEFAULT '',
+        `processor` varchar(255) NOT NULL DEFAULT '',
+        `completed` int(11) DEFAULT NULL,
+        `queued` int(11) DEFAULT NULL,
+        `failed` int(11) DEFAULT NULL,
+        PRIMARY KEY (`workflow_id`,`processor`)
+      ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+      CREATE TABLE `Stats` (
+        `workflow_id` varchar(255) NOT NULL DEFAULT '',
+        `completed` int(11) DEFAULT NULL,
+        `completed_wt` bigint(20) DEFAULT NULL,
+        `completed_et` bigint(20) DEFAULT NULL,
+        `completed_it` bigint(20) DEFAULT NULL,
+        `completed_ot` bigint(20) DEFAULT NULL,
+        `cancelled` int(11) DEFAULT NULL,
+        `cancelled_wt` bigint(20) DEFAULT NULL,
+        `cancelled_et` bigint(20) DEFAULT NULL,
+        `cancelled_it` bigint(20) DEFAULT NULL,
+        `cancelled_ot` bigint(20) DEFAULT NULL,
+        `failed_app` int(11) DEFAULT NULL,
+        `failed_app_wt` bigint(20) DEFAULT NULL,
+        `failed_app_et` bigint(20) DEFAULT NULL,
+        `failed_app_it` bigint(20) DEFAULT NULL,
+        `failed_app_ot` bigint(20) DEFAULT NULL,
+        `failed_in` int(11) DEFAULT NULL,
+        `failed_in_wt` bigint(20) DEFAULT NULL,
+        `failed_in_et` bigint(20) DEFAULT NULL,
+        `failed_in_it` bigint(20) DEFAULT NULL,
+        `failed_in_ot` bigint(20) DEFAULT NULL,
+        `failed_out` int(11) DEFAULT NULL,
+        `failed_out_wt` bigint(20) DEFAULT NULL,
+        `failed_out_et` bigint(20) DEFAULT NULL,
+        `failed_out_it` bigint(20) DEFAULT NULL,
+        `failed_out_ot` bigint(20) DEFAULT NULL,
+        `failed_sta` int(11) DEFAULT NULL,
+        `failed_sta_wt` bigint(20) DEFAULT NULL,
+        `failed_sta_et` bigint(20) DEFAULT NULL,
+        `failed_sta_it` bigint(20) DEFAULT NULL,
+        `failed_sta_ot` bigint(20) DEFAULT NULL,
+        PRIMARY KEY (`workflow_id`)
+      ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+      CREATE TABLE `Workflows` (
+        `id` varchar(255) NOT NULL DEFAULT '',
+        `username` varchar(255) DEFAULT NULL,
+        `status` varchar(50) DEFAULT NULL,
+        `launched` timestamp NULL DEFAULT NULL,
+        `finish_time` timestamp NULL DEFAULT NULL,
+        `simulation_name` varchar(255) DEFAULT NULL,
+        `application` varchar(255) DEFAULT NULL,
+        `application_version` varchar(255) DEFAULT NULL,
+        `application_class` varchar(255) DEFAULT NULL,
+        `engine` varchar(255) DEFAULT NULL,
+        PRIMARY KEY (`id`)
+      ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+    permissions: '0644'
+
+  - path: /etc/systemd/system/grida.service
+    content: |
+      [Unit]
+      Description=Grida server
+      After=network.target
+      [Service]
+      User=vip
+      Type=simple
+      WorkingDirectory=/home/vip/grida
+      # Needed for: /usr/bin/which, lcg-cp & lcg-cr
+      Environment=PATH=$PATH:/bin:/usr/bin:/usr/share/lcgBundles/Linux_x86_64_glibc-2.12/bin
+      Environment=LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/share/lcgBundles/Linux_x86_64_glibc-2.12/lib
+      Environment=JAVA_HOME=/etc/alternatives/jre_1.8.0
+      ExecStart=/etc/alternatives/jre_1.8.0/bin/java -jar /home/vip/grida/grida-server-1.4.1.jar
+      Environment=LFC_HOST=<LFC_HOST>
+      Environment=LCG_GFAL_INFOSYS=<LCG_GFAL_INFOSYS_HOST>:<LCG_GFAL_INFOSYS_PORT>
+      Environment=LCG_GFAL_VO=<VO_NAME>
+      [Install]
+      WantedBy=multi-user.target
+    permissions: '0664'
+
+  - path: /home/vip/grida/grida-server.conf
+    content: |
+      agent.port = 5006
+      agent.retrycount = 5
+      agent.min.available.diskspace = 0.02
+
+      lfc.host = <LFC_HOST>
+      lfc.preferredSEsList = <SE_LIST>
+
+      vo = <VO_NAME>
+
+      bdii.host = <LCG_GFAL_INFOSYS_HOST>
+      bdii.port = <LCG_GFAL_INFOSYS_PORT>
+
+      cache.list.max.entries = 30
+      cache.list.max.hours = 12
+      cache.files.max.size = 100.0
+      cache.files.path = /home/vip/grida/cache
+
+      pool.max.download = 10
+      pool.max.upload = 10
+      pool.max.delete = 5
+      pool.max.replication = 5
+      pool.max.history = 15
+    permissions: '0644'
+
+  - path: /etc/systemd/system/sma.service
+    content: |
+      [Unit]
+      Description=SMA (Simple Mail Agent) server
+      After=network.target
+      [Service]
+      User=vip
+      Type=simple
+      WorkingDirectory=/home/vip/sma
+      Environment=JAVA_HOME=/etc/alternatives/jre_1.8.0
+      ExecStart=/etc/alternatives/jre_1.8.0/bin/java -jar /home/vip/sma/sma-server-0.1.jar
+      [Install]
+      WantedBy=multi-user.target
+    permissions: '0664'
+
+  - path: /home/vip/sma/sma-server.conf
+    content: |
+      sma.port = 8084
+      sma.retrycount = 5
+      mail.host = <SMTP_SERVER>
+      mail.transport.protocol = smtp
+      mail.from = <ADMIN_EMAIL>
+      mail.from.name = VIP
+      mail.max.simultaneous.runs = 5
+      sma.max.history = 90
+    permissions: '0664'
+
+  - path: /etc/systemd/system/h2.service
+    content: |
+      [Unit]
+      Description=VIP H2 server
+      [Service]
+      User=apache
+      Type=simple
+      WorkingDirectory=/home/vip/h2
+      Environment=JAVA_HOME=/etc/alternatives/jre_1.8.0
+      ExecStart=/etc/alternatives/jre_1.8.0/bin/java -cp bin/h2-1.3.167.jar org.h2.tools.Server -tcp -tcpAllowOthers
+      [Install]
+      WantedBy=multi-user.target
+    permissions: '0664'
+
+  - path: /etc/httpd/conf.d/tomcat.conf
+    content: |
+      <VirtualHost *:80>
+        ServerName <HOSTNAME>
+        Redirect permanent /vip-portal-1.21 https://<HOSTNAME>/vip-portal-1.21
+      </VirtualHost>
+
+      <VirtualHost *:443>
+        ServerName <HOSTNAME>
+
+        Header always set Strict-Transport-Security "max-age=63072000;"
+
+        SSLEngine on
+        SSLProtocol all -SSLv2 -SSLv3
+        SSLHonorCipherOrder on
+        SSLCipherSuite "EECDH+ECDSA+AESGCM EECDH+aRSA+AESGCM \
+                        EECDH+ECDSA+SHA384 EECDH+ECDSA+SHA256 \
+                        EECDH+aRSA+SHA384 EECDH+aRSA+SHA256 \
+                        EECDH+aRSA+RC4 EECDH EDH+aRSA RC4 \
+                        !aNULL !eNULL !LOW !3DES !MD5 !EXP !PSK \
+                        !SRP !DSS"
+
+        SSLCertificateFile /etc/pki/tls/certs/<_HOSTNAME_>.crt
+        SSLCertificateKeyFile /etc/pki/tls/private/<_HOSTNAME_>.key
+
+        ProxyRequests Off
+        ProxyPreserveHost On
+
+        ErrorLog /var/log/httpd/tomcat.error.log
+        CustomLog /var/log/httpd/tomcat.log combined
+
+        <Proxy *>
+          Order deny,allow
+          Allow from all
+        </Proxy>
+
+        ProxyPass /vip-portal-1.21 ajp://localhost:8009/vip-portal-1.21
+        ProxyPassReverse /vip-portal-1.21 ajp://localhost:8009/vip-portal-1.21
+      </VirtualHost>
+    permissions: '0644'
+
+  - path: /etc/systemd/system/tomcat.service
+    content: |
+      [Unit]
+      Description=Tomcat
+      Requires=grida.service sma.service httpd.service myproxy-server.service
+      [Service]
+      User=vip
+      Type=forking
+      PIDFile=/home/vip/apache-tomcat-<TOMCAT_VERSION>/bin/catalina.pid
+      WorkingDirectory=/home/vip/apache-tomcat-<TOMCAT_VERSION>
+      ExecStart=/home/vip/apache-tomcat-<TOMCAT_VERSION>/bin/startup.sh
+      ExecStop=/home/vip/apache-tomcat-<TOMCAT_VERSION>/bin/shutdown.sh
+      Environment=CATALINA_PID=/home/vip/apache-tomcat-<TOMCAT_VERSION>/bin/catalina.pid
+      [Install]
+      WantedBy=multi-user.target
+    permissions: '0664'
+
+  - path: /home/vip/tomcat-server.xml
+    content: |
+      <GlobalNamingResources>
+        <Resource name="jdbc/vip"
+                  auth="Container"
+                  type="javax.sql.DataSource"
+                  username="<DB_VIP_USERNAME>"
+                  password="<DB_VIP_PASSWORD>"
+                  driverClassName="com.mysql.jdbc.Driver"
+                  url="jdbc:mysql://localhost:3306/vip"
+                  validationQuery="select 1"
+                  testOnBorrow="true"
+                  maxTotal="100"
+                  maxIdle="50" />
+    permissions: '0644'
+
+  - path: /etc/systemd/system/GASWServiceHandler.service
+    content: |
+      [Unit]
+      Description=VIP GASWServiceHandler
+      [Service]
+      User=vip
+      Type=simple
+      WorkingDirectory=/home/vip
+      Environment=PYTHONPATH=/var/www/cgi-bin/m2Server-gasw3/dirac
+      ExecStart=/bin/python /var/www/cgi-bin/m2Server-gasw3/dirac/DIRAC/WorkloadManagementSystem/Service/GASWServiceHandler.py
+    permissions: '0664'
+
+  - path: /root/sbin/update-conf.sh
+    content: |
+      #!/bin/sh
+      conf_file=$1
+      file=$2
+      script_file=/tmp/update-conf-script-$$
+
+      cat ${conf_file} | while read line
+      do
+        var=`echo $line | cut -d= -f1`
+        value=`echo $line | cut -d= -f2- | sed -e 's/^"\(.*\)"$/\1/'`
+        # Use # as separators as / may be in the values.
+        echo "s#<${var}>#${value}#" >> ${script_file}
+      done
+      echo "s#<_HOSTNAME_>#`grep HOSTNAME ${conf_file} | sed 's/HOSTNAME=//' | sed 's/\./_/g'`#" >> ${script_file}
+
+      sed -i -f ${script_file} ${file}
+      rm ${script_file}
+    permissions: '0744'
+
+  - path: /root/sbin/update_java_security.sh
+    content: |
+      #!/bin/sh
+      FILE=`set -- /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.*.x86_64/jre/lib/security/java.security; echo $1`
+      echo "security.provider.10=org.bouncycastle.jce.provider.BouncyCastleProvider" >> ${FILE}
+      FILE=`set -- /usr/lib/jvm/java-1.7.0-openjdk-1.7.0.*.x86_64/jre/lib/security/java.security; echo $1`
+      echo "security.provider.10=org.bouncycastle.jce.provider.BouncyCastleProvider" >> ${FILE}
+      unset FILE
+    permissions: '0744'
+
+  - path: /root/sbin/update_myproxy_server_config.sh
+    content: |
+      #!/bin/sh
+      cat >> /etc/myproxy-server.config <<EOF
+
+      # Parameters added by cloud-init configuration script.
+      accepted_credentials "\/O=GRID-FR\/C=FR\/O=CNRS\/*"
+      authorized_retrievers "*"
+      authorized_renewers "*"
+      authorized_key_retrievers "\/O=GRID-FR\/C=FR\/O=CNRS\/*"
+      trusted_retrievers "*"
+      default_trusted_retrievers "none"
+      max_proxy_lifetime 24
+      max_cred_lifetime 800
+      EOF
+    permissions: '0744'
+
+  - path: /root/sbin/update_env_sh.sh
+    content: |
+      #!/bin/sh
+      source /root/global_configuration.txt
+      TMP_FILE=/tmp/update_env-$$.txt
+      cat > ${TMP_FILE} <<EOF
+      s/export LFC_HOST=.*/export LFC_HOST=${LFC_HOST}/
+      s/export LCG_GFAL_INFOSYS=.*/export LCG_GFAL_INFOSYS=${LCG_GFAL_INFOSYS_HOST}:${LCG_GFAL_INFOSYS_PORT}/
+      s#export ROBOT_PROXY=.*#export ROBOT_PROXY=/var/www/html/workflows/dirac-robot-${VO_NAME}#
+      s#source \${MOTEUR_HOME}/dirac-client/.*#source /var/www/cgi-bin/m2Server-gasw3/dirac/bashrc \&>/tmp/dirac-env1.err#
+      EOF
+      sed -i -f ${TMP_FILE} /var/www/cgi-bin/m2Server-gasw3/env.sh
+      rm ${TMP_FILE}
+      cat >> /var/www/cgi-bin/m2Server-gasw3/env.sh <<EOF
+
+      # Give access to lcg-*
+      #export PATH=\$PATH:/usr/share/lcgBundles/Linux_x86_64_glibc-2.12/bin
+      #export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/share/lcgBundles/Linux_x86_64_glibc-2.12/lib
+      export PATH=/var/www/cgi-bin/m2Server-gasw3/bin:\$PATH
+      EOF
+    permissions: '0744'
+
+  - path: /root/sbin/update_workflow_agent_conf.sh
+    content: |
+      #!/bin/sh
+      rm /var/www/cgi-bin/m2Server-gasw3/worflow-agent-0.2/workflow-agent.conf
+      echo "db.h2.server=localhost" > /var/www/cgi-bin/m2Server-gasw3/worflow-agent-0.2/workflow-agent.conf
+      echo "db.h2.port=9092" >> /var/www/cgi-bin/m2Server-gasw3/worflow-agent-0.2/workflow-agent.conf
+    permissions: '0744'
+
+  - path: /root/sbin/update_moteur2_conf.sh
+    content: |
+      #!/bin/sh
+      source /root/global_configuration.txt
+      TMP_FILE=/tmp/update_moteur2-$$.txt
+      cat > ${TMP_FILE} << EOF
+      s/myproxy-server="MODIFY"/myproxy-server="${HOSTNAME}"/g
+      s/myproxy-port="MODIFY"/myproxy-port="7512"/g
+      s/vo="MODIFY"/vo="${VO_NAME}"/g
+      EOF
+      sed -i -f ${TMP_FILE} /var/www/cgi-bin/m2Server-gasw3/.moteur2/moteur2.conf
+      rm ${TMP_FILE}
+    permissions: '0744'
+
+  - path: /root/sbin/update_default_conf.sh
+    content: |
+      #!/bin/sh
+      source /root/global_configuration.txt
+      TMP_FILE=/tmp/update_default_conf-$$.txt
+      cat > ${TMP_FILE} << EOF
+      s#LFC_HOME=[^ ]*#LFC_HOME=${LFC_HOST}${LFC_VIP_ROOT_DIR}#g
+      s/LFC_HOST=[^ ]*/LFC_HOST=${LFC_HOST}/g
+      s/LCG_GFAL_VO=[^ ]*/LCG_GFAL_VO=${VO_NAME}/g
+      s/vo\.default\.se.*$/vo.default.se=${SE_LIST}/g
+      s/plugin\.dirac\.host.*$/plugin.dirac.host = localhost/g
+      s/plugin\.dirac\.default\.pool.*$/plugin.dirac.default.pool=biomedPool/g
+      s/plugin\.dirac\.mysql\.host.*$//g
+      s/plugin\.dirac\.mysql\.port.*$//g
+      s/plugin\.dirac\.mysql\.user.*$//g
+      s/plugin\.h2\.server\.host.*$/plugin.h2.server.host = localhost/g
+      s/plugin\.h2\.server\.port.*$/plugin.h2.server.port = 9092/g
+      s/plugin\.h2\.user.*$/plugin.h2.user = gasw/g
+      s/plugin\.h2\.password.*$/plugin.h2.password = gasw/g
+      EOF
+
+      sed -i -f ${TMP_FILE} /var/www/cgi-bin/m2Server-gasw3/conf/default.conf
+      rm ${TMP_FILE}
+    permissions: '0744'
+
+  - path: /root/sbin/update_override_conf.sh
+    content: |
+      #!/bin/sh
+      source /root/global_configuration.txt
+      sed -i -e "s/SE=.*$/SE=\"${SE_LIST}\"/" -e "s/VO=.*$/VO=${VO_NAME}/" /var/www/cgi-bin/m2Server-gasw3/conf/override.conf
+    permissions: '0744'
+
+  - path: /root/sbin/renew_voms_for_moteur.sh
+    content: |
+      #!/bin/sh
+      # This script supposes the existence of a valid proxy in /tmp/dirac-robot.
+      # This proxy should be updated by some external means.
+
+      echo "---------------------------------------------------------------"
+      date
+      echo "Add <VO_NAME> VOMS"
+      DEST_FILE=/var/www/html/workflows/dirac-robot-<VO_NAME>
+      X509_USER_PROXY=/tmp/dirac-robot voms-proxy-init -n --out $DEST_FILE --voms <VO_NAME>
+      chmod 600 $DEST_FILE
+      chown apache:apache $DEST_FILE
+      /usr/sbin/restorecon $DEST_FILE
+    permissions: '0744'
+
+  - path: /root/sbin/update_moteur2_plugin_conf.sh
+    content: |
+      #!/bin/sh
+      source /root/global_configuration.txt
+      TMP_FILE=/tmp/update_moteur2_plugin_conf-$$.txt
+      # \ is needed before $#, otherwise the is shell replacement.
+      cat > ${TMP_FILE} << EOF
+      s/connection\.username.*$/connection\.username = ${DB_VIP_USERNAME}/
+      s/connection\.password.*$/connection\.password = ${DB_VIP_PASSWORD}/
+      s#connection\.url.*\$#connection\.url = jdbc:mysql://localhost:3306/workflowsdb#
+      EOF
+
+      sed -i -f ${TMP_FILE} /var/www/prod/.moteur2/moteur2plugins.conf
+      rm ${TMP_FILE}
+    permissions: '0744'
+
+  - path: /root/sbin/get_gfal_to_lcg_scripts.sh
+    content: |
+      #! /bin/bash
+      MOTEUR_BIN=/var/www/cgi-bin/m2Server-gasw3/bin
+      GITHUB_GFAL_URI=https://raw.githubusercontent.com/wassong-iphc/Complementary-tools/cloud-init-dev/lcg-gfal
+      mkdir -p ${MOTEUR_BIN}
+      for f in lcg-compat.sh lcg-cp lcg-cr lcg-del
+      do
+        wget -q ${GITHUB_GFAL_URI}/$f -O ${MOTEUR_BIN}/$f
+      done
+      /root/sbin/update-conf.sh /root/global_configuration.txt ${MOTEUR_BIN}/lcg-cr
+      # The log file must exist.
+      GFAL_LOGS=/var/www/cgi-bin/m2Server-gasw3/gfal.log
+      touch ${GFAL_LOGS}
+      chmod 0644 ${GFAL_LOGS}
+      chown apache:apache ${GFAL_LOGS}
+
+      chown apache:apache ${MOTEUR_BIN}/*
+      chmod +x ${MOTEUR_BIN}/*
+
+      unset GFAL_LOGS
+      unset MOTEUR_BIN
+      unset GITHUB_GFAL_URI
+    permissions: '0744'
+
+  - path: /home/vip/robotcert/uploadRobot.sh
+    content: |
+      #! /bin/bash
+
+      LOG=/home/vip/robotcert/uploadRobot.log
+      EMAILADMIN=<ADMIN_EMAIL>
+      EMAILSUBJPREFIX="[SBGSOL] Robot certificate"
+      X509_USER_PROXY=/tmp/dirac-robot
+      X509_USER_PROXY_NOVOMS=/tmp/dirac-robot-novoms
+
+      ROBOTCERT=/home/vip/.globus/usercert.pem
+      ROBOTKEY=/home/vip/.globus/userkey.pem
+      ROBOTPASSFILE=/home/vip/robotcert/passphrase.txt
+
+      # Same password as in ~vip/.vip/vip.conf
+      MYPROXYPASS=<MYPROXY_PASSWORD>
+      MYPROXYPORT=7512
+      MYPROXYHOST=<HOSTNAME>
+
+      function main() {
+        echo
+        echo "###############################################################"
+        date
+
+        # D'abord creer un proxy local
+        echo "------ voms-proxy-init ------"
+        voms-proxy-init -pwstdin --valid 1000:0 -cert ${ROBOTCERT} -key ${ROBOTKEY} -out ${X509_USER_PROXY_NOVOMS} < ${ROBOTPASSFILE}
+
+        if [ $? != 0 ]; then
+          echo "couldn't voms-proxy-init robot certificate"
+          echo "couldn't voms-proxy-init robot certificate" | mailx -s "${EMAILSUBJPREFIX} error" ${EMAILADMIN}
+          #exit 1
+        fi
+
+        # Ensuite uploader ce proxy local sur le serveur myproxy, en le
+        # protegeant par la passphrase
+
+        echo "------ myproxy-init ------"
+        echo ${MYPROXYPASS} | myproxy-init -p ${MYPROXYPORT} -v -S -s ${MYPROXYHOST} -d -C ${X509_USER_PROXY_NOVOMS} -y ${X509_USER_PROXY_NOVOMS} -t 1000
+
+        if [ $? != 0 ]; then
+          echo "couldn't myproxy-init robot certificate"
+          echo "couldn't myproxy-init robot certificate" | mailx -s "${EMAILSUBJPREFIX} error" ${EMAILADMIN}
+        else
+          echo "successfully renewed robot proxy certificate on myproxy server"
+          echo "successfully renewed robot proxy certificate on myproxy server" | mailx -s "${EMAILSUBJPREFIX} success" ${EMAILADMIN}
+        fi
+      }
+
+      main >> ${LOG} 2>&1
+    permissions: '0744'
+
+  - path: /root/sbin/create-lsc-file-and-voms.sh
+    content: |
+      #!/bin/sh
+      source /root/global_configuration.txt
+      TMP_FILE=/tmp/create-lsc-file-and-voms-$$
+      wget -q http://operations-portal.egi.eu/xml/voIDCard/public/voname/${VO_NAME} -O ${TMP_FILE}
+      VOMS_HOSTNAME=`xmllint --xpath '/VoDump/IDCard/gLiteConf/VOMSServers/VOMS_Server/hostname/text()' ${TMP_FILE}`
+      VOMS_PORT=`xmllint --xpath 'string(/VoDump/IDCard/gLiteConf/VOMSServers/VOMS_Server/@VomsesPort)' ${TMP_FILE}`
+      DN=`xmllint --xpath '/VoDump/IDCard/gLiteConf/VOMSServers/VOMS_Server/X509Cert/DN/text()' ${TMP_FILE}`
+      CA_DN=`xmllint --xpath '/VoDump/IDCard/gLiteConf/VOMSServers/VOMS_Server/X509Cert/CA_DN/text()' ${TMP_FILE}`
+
+      mkdir -p /etc/grid-security/vomsdir/${VO_NAME}
+      FILENAME=/etc/grid-security/vomsdir/${VO_NAME}/${VOMS_HOSTNAME}.lsc
+      echo $DN > ${FILENAME}
+      echo ${CA_DN} >> ${FILENAME}
+
+      mkdir -p /etc/vomses
+      chmod 755 /etc/vomses
+
+      VOMS_FILENAME=/etc/vomses/${VO_NAME}-${VOMS_HOSTNAME}.vo.ncm-vomsclient
+      echo "\"${VO_NAME}\" \"${VOMS_HOSTNAME}\" \"${VOMS_PORT}\" \"${DN}\" \"${VO_NAME}\"" > ${VOMS_FILENAME}
+
+      rm -f ${TMP_FILE}
+    permissions: '0744'
+
+  - path: /root/sbin/update-vip-database.sh
+    content: |
+      #!/bin/sh
+      script_name=$0
+      source /root/global_configuration.txt
+      check() {
+        t1=`mysql -Ns --user=root --password=$DB_ROOT_PASSWD -e "select count(*) from information_schema.tables where table_schema='vip' and table_name = 'VIPUsersGroups';"`
+        t2=`mysql -Ns --user=root --password=$DB_ROOT_PASSWD -e "select count(*) from information_schema.tables where table_schema='vip' and table_name = 'VIPUsers';"`
+        if [ $t1 = "1" ] && [ $t2 = "1" ]
+        then
+          if [ `mysql -Ns --user=root --password=$DB_ROOT_PASSWD -e "use vip; select count(*) from VIPUsers;"` = "1" ]
+          then
+            return 0
+          fi
+        fi
+
+        return 1
+      }
+      waited=false
+      while ! check
+      do
+        echo "Waiting 5s in ${script_name}"
+        waited=true
+        sleep 5
+      done
+      mysql --user=root --password=$DB_ROOT_PASSWD -e "use vip;insert into VIPUsersGroups values ('$ADMIN_EMAIL', 'Support', 'User');insert into VIPTermsOfuse (date, text) values (now(), 'the text');"
+      if [ "$waited" = "true" ]
+      then
+        echo "${script_name} now done"
+      fi
+    permissions: '0744'
+
+  - path: /root/sbin/status
+    content: |
+      #!/bin/sh
+      #set -x
+
+      # voir les couleurs ici :
+      # https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
+      #
+      RED='\033[0;31m'
+      GREEN='\033[0;32m'
+      BLUE='\033[0;34m'
+      WHITE='\033[1,37'
+      NOCOLOR='\033[0m'
+
+      check_services() {
+        services=$*
+        for service in $services
+        do
+          status=`systemctl is-active $service`
+          if [ "$status" != "active" ]
+          then
+            prefix=$RED
+          else
+            prefix=$GREEN
+          fi
+          echo -e "$service ${prefix}${status}${NOCOLOR}"
+        done
+      }
+
+      check_audit() {
+        audit="/var/log/audit/audit.log"
+        nbDenied=`grep -c denied $audit`
+        if [ "$nbDenied" -gt 0 ]
+        then
+          lastDenied=`grep denied $audit | tail -1`
+          type=`echo $lastDenied | sed -e 's/.*denied . \([^ ]*\) ..*/\1/'`
+          date=`echo $lastDenied | sed -e 's/.*(\([0-9]*\).*/\1/'`
+          if [ "$type" = "read" -o "$type" = "execute" ]
+          then
+            fichier=", `echo $lastDenied | sed -e 's/.*name=\"\([^\"]*\)\".*/\1/'`"
+          else
+            fichier=""
+          fi
+          echo -e "audit.log contains ${RED}${nbDenied} denied${NOCOLOR} (the last is: $type, `date -d @${date}`${fichier})"
+        else
+          echo "audit.log : OK"
+        fi
+      }
+
+      check_enforce_mode() {
+        mode=`getenforce`
+        if [ "$mode" = "Permissive" ]
+        then
+          prefix=$GREEN
+        else
+          prefix=$RED
+        fi
+        echo -e "Enforce mode is ${prefix}${mode}${NOCOLOR}"
+      }
+
+      services="fail2ban fetch-crl-cron GASWServiceHandler grida h2 haveged httpd mariadb myproxy-server postfix sma tomcat"
+      check_services $services
+
+      check_audit
+
+      check_enforce_mode
+    permissions: '0744'
+
+runcmd:
+  ###############################
+  # Setup some usefull aliases
+  - echo "-------------- Setup some usefull aliases --------------"
+  - chown vip:vip /home/vip/.bashrc /home/vip/.bash_profile /home/vip/.bash_history
+
+  #############################
+  # Give access to global variables.
+  - echo "-------------- Give access to global variables --------------"
+  - . /root/global_configuration.txt
+
+  ###############################
+  # Install deltarpm
+  # Do this early as it helps speed the whole process
+  - echo "-------------- Install deltarpm --------------"
+  - yum clean expire-cache
+  - yum -y -q install deltarpm
+
+  ###############################
+  # Enable & start havege & fail2ban daemons (early for security)
+  # haveged : ameliore random number generator on headless server
+  # fail2ban : scanne les logs et ban des IP si necessaire.
+  - echo "-------------- Install haveged and fail2ban --------------"
+  - yum -y -q install haveged fail2ban
+  - for s in haveged fail2ban; do systemctl enable $s.service; done
+  - for s in haveged fail2ban; do systemctl start $s.service; done
+
+  ###############################
+  # Update OS, don't do it during the tests.
+#  - echo "-------------- yum update and upgrade --------------"
+#  - yum -y update
+#  - yum -y upgrade
+
+  ###############################
+  # Get some other useful packages, before installing the rest.
+  - echo "-------------- Install many usefull package with yum  --------------"
+  - yum -y -q install cryptsetup curl fuse-sshfs iotop lsof mailx net-tools
+  - yum -y -q install psmisc strace sysstat traceroute unzip wget
+
+  ###############################
+  # Mysql
+  - echo "-------------- mysql --------------"
+  - yum -y -q install mariadb mariadb-server
+  - systemctl enable mariadb.service
+  - systemctl start mariadb.service
+  - mysqladmin password $DB_ROOT_PASSWD
+  - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/.vip/vip.sql
+  - mysql --user=root --password=$DB_ROOT_PASSWD < /home/vip/.vip/vip.sql
+
+  ###############################
+  # Java => avant apache, h2, ...
+  - echo "-------------- java --------------"
+  - yum -y -q install java-1.8.0-openjdk
+  - yum -y -q install java-1.7.0-openjdk
+
+  ###############################
+  # Myproxy server
+  - echo "-------------- Myproxy server --------------"
+  - yum -y -q install myproxy myproxy-server
+  - /root/sbin/update_myproxy_server_config.sh
+  - systemctl restart myproxy-server
+  # The certificates in /etc/grid-security/myproxy must be installed
+  # manually.
+  # - chown -R myproxy /etc/grid-security/myproxy
+  # - chmod 600 /etc/grid-security/myproxy/*key.pem
+
+  - /root/sbin/create-lsc-file-and-voms.sh
+
+  # Edit /etc/myproxy-server.config ??
+  # put my cert into ~vip/.globus
+  # run command (with vip user) so that my certs are used
+  # myproxy-init -p 7512 -v -s sbgsol.in2p3.fr -d -c 23
+  - chown vip:vip /home/vip/robotcert/uploadRobot.sh # write_files cannot do it.
+  - echo ${PASSPHRASE} > /home/vip/robotcert/passphrase.txt
+  - chown vip:vip /home/vip/robotcert/passphrase.txt
+  - chmod 400 /home/vip/robotcert/passphrase.txt
+  - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/robotcert/uploadRobot.sh
+  - echo "30 7,23 * * * /home/vip/robotcert/uploadRobot.sh" >> /var/spool/cron/vip
+  - systemctl enable myproxy-server.service
+  - systemctl start myproxy-server.service
+
+  ###############################
+  # Create auto-signed certificate => to be replaced by correct
+  # certificate.  Before httpd, which needs the certificate.
+  # After myproxy installation, so that myproxy user exists.
+  - echo "-------------- autosigned certificates --------------"
+  - HOSTNAME_FILE=`echo ${HOSTNAME} | sed -e 's/\./_/g'`
+  - TMP_FILE=/tmp/server-$$.csr
+  - openssl genrsa -out /etc/pki/tls/private/${HOSTNAME_FILE}.key 4096
+  - openssl req -new -subj "/C=FR/O=CNRS/CN=GRID-FR/OU=IPHC/CN=${HOSTNAME}" -key /etc/pki/tls/private/${HOSTNAME_FILE}.key -out ${TMP_FILE}
+  - openssl x509 -req -days 365 -in ${TMP_FILE} -signkey /etc/pki/tls/private/${HOSTNAME_FILE}.key -out /etc/pki/tls/certs/${HOSTNAME_FILE}.crt
+  - rm -f ${TMP_FILE}
+
+  # The myproxy certificates must be grid certificates.  They must be
+  # installed from outside of the server.  We just create the
+  # directory.
+  - mkdir -p /etc/grid-security/myproxy
+  - chown -R myproxy /etc/grid-security/myproxy
+
+  - unset TMP_FILE
+  - unset HOSTNAME_FILE
+
+
+  ###############################
+  # Apache
+  - echo "-------------- httpd / apache --------------"
+  # First allow access to /etc/httpd/conf/httpd.conf
+  - setenforce Permissive
+  # Then install Apache, and module for https.
+  - yum -y -q install httpd mod_ssl
+  # Forbid directory listings.  Usefull for moteur files.
+  - sed -i -e 's/Options Indexes/Options/' /etc/httpd/conf/httpd.conf
+  # Remove configuration of VirtualHost 443 as it is in tomcat.conf
+  - sed -i '/<VirtualHost/,/\/VirtualHost>/d' /etc/httpd/conf.d/ssl.conf
+  - /root/sbin/update-conf.sh /root/global_configuration.txt /etc/httpd/conf.d/tomcat.conf
+  - systemctl enable httpd
+  - systemctl start httpd
+  - systemctl status httpd
+
+  ###############################
+  # H2
+  # Version 1.4.x has changed the database format.  This means we must
+  # use a version 1.3.x.  Version 1.3.167 is used by VIP server.  So we
+  # use this same version.  It can be downloaded with the file
+  # https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/h2database/h2-2012-05-23.zip
+  - echo "-------------- h2 --------------"
+  - export H2_ZIP=h2-2012-05-23.zip
+  - wget -q https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/h2database/${H2_ZIP} -O /home/vip/${H2_ZIP}
+  - cd /home/vip && unzip -q /home/vip/${H2_ZIP}
+  - rm -f /home/vip/${H2_ZIP}
+  - unset H2_ZIP
+  - chown -R vip:vip /home/vip/h2
+  # h2 is run with apache user.  It must be accessible.
+  - chmod 755 /home/vip
+  - systemctl enable h2.service
+  - systemctl start h2.service
+
+  ###############################
+  # Disable firewall for now
+#  - echo "-------------- Disable firewall --------------"
+  #~ - systemctl stop firewalld.service
+  #~ - systemctl mask firewalld.service
+
+  ###############################
+  # Create datamanager dirs.  They seem to be unused !?
+#  - echo "-------------- Create datamanager dirs --------------"
+#  - mkdir -p /home/vip/datamanager/users
+#  - mkdir -p /home/vip/datamanager/groups
+  #~ - mkdir -p /home/vip/expresslane2vip/uploads
+
+  ###############################
+  # Enable bouncycastle security provider java classes
+  - echo "-------------- bouncycastle --------------"
+  - yum -y -q install bouncycastle
+  - /root/sbin/update_java_security.sh
+
+  ###############################
+  # UMD4
+  - echo "-------------- umd4 --------------"
+  - yum -y -q install yum-priorities yum-protectbase
+  - rpm --import http://repository.egi.eu/sw/production/umd/UMD-RPM-PGP-KEY
+  - yum -y -q install http://repository.egi.eu/sw/production/umd/4/centos7/x86_64/updates/umd-release-4.1.3-1.el7.centos.noarch.rpm
+  - wget -q http://repository.egi.eu/sw/production/cas/1/current/repo-files/EGI-trustanchors.repo -O /etc/yum.repos.d/EGI-trustanchors.repo
+
+  ###############################
+  # Tools for VIP
+  - echo "-------------- yum, more tools for vip --------------"
+  - yum -y -q install ca-policy-egi-core emi-ui openldap-clients glite-lb-client-progs perl-dpm perl-lfc dpm-devel lfc-devel voms*
+
+  ###############################
+  # LCG software bundle
+  - echo "-------------- LCG software bundle --------------"
+  - mkdir -p /usr/share/lcgBundles
+  - curl -sS http://lhcbproject.web.cern.ch/lhcbproject/dist/Dirac_project/lcgBundles/DIRAC-lcg-1970-01-01-Linux_x86_64_glibc-2.12-python26.tar.gz | tar -C /usr/share/lcgBundles -zxf -
+  - chown -R root:root /usr/share/lcgBundles
+
+  ###############################
+  # SMA (un simple .jar java8)
+  - echo "-------------- sma --------------"
+  - mkdir -p /home/vip/sma
+  - cd /home/vip/sma && wget -q https://github.com/virtual-imaging-platform/SMA/releases/download/r_0_1/sma-server-0.1.zip
+  - cd /home/vip/sma && unzip sma-server-0.1.zip
+  - rm -f sma-server-0.1.zip
+  - chown -R vip:vip /home/vip/sma
+  - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/sma/sma-server.conf
+  - systemctl enable sma.service
+  - systemctl start sma.service
+
+  ###############################
+  # Start and enable cron for fetch-crl
+  - echo "-------------- fetch-crl --------------"
+  - yum -y -q install fetch-crl
+  - systemctl enable fetch-crl-cron
+  - systemctl start fetch-crl-cron
+
+  ###############################
+  # GRIDA (un simple .jar java8)
+  - echo "-------------- grida --------------"
+  - mkdir -p /home/vip/grida/cache
+  - wget -q https://github.com/virtual-imaging-platform/GRIDA/releases/download/1.4.1/grida-server-1.4.1.jar -O /home/vip/grida/grida-server-1.4.1.jar
+  - /root/sbin/update-conf.sh /root/global_configuration.txt /etc/systemd/system/grida.service
+  - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/grida/grida-server.conf
+  - systemctl enable grida.service
+  - systemctl start grida.service
+
+  ###############################
+  # Tomcat : needs grida, sma, httpd and myproxy-server
+  - echo "-------------- tomcat --------------"
+  - TOMCAT_VERSION="8.5.24"
+  - curl -sS http://mirror.ibcp.fr/pub/apache/tomcat/tomcat-8/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz | tar -C /home/vip -zxf -
+  - wget -q https://github.com/virtual-imaging-platform/VIP-portal/releases/download/1.21/vip-portal-1.21.war -O /home/vip/apache-tomcat-${TOMCAT_VERSION}/webapps/vip-portal-1.21.war
+  - chown -R vip:vip /home/vip/apache-tomcat-${TOMCAT_VERSION}
+  - chown vip:vip /home/vip/.vip/vip.conf # write_files cannot do it.
+  - sed -i -e "s/<TOMCAT_VERSION>/${TOMCAT_VERSION}/g" /etc/systemd/system/tomcat.service
+  - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/.vip/vip.conf
+  - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/tomcat-server.xml
+  - awk -v r="`cat /home/vip/tomcat-server.xml`" '{sub(/.*<GlobalNamingResources>.*$/, r)}1' /home/vip/apache-tomcat-${TOMCAT_VERSION}/conf/server.xml > /tmp/tomcat-server-$$.xml
+  - mv /tmp/tomcat-server-$$.xml /home/vip/apache-tomcat-${TOMCAT_VERSION}/conf/server.xml
+  - unset TOMCAT_VERSION
+  - rm /home/vip/tomcat-server.xml
+  - systemctl enable tomcat
+  - systemctl start tomcat
+  # We restart tomcat each night.  It regularly looses the connexion to
+  # the database.
+  - echo "30 4 * * * systemctl restart tomcat" >> /var/spool/cron/root
+
+  ###############################
+  # Install docker, which is used by moteur to run local applications.
+#  - echo "-------------- docker --------------"
+#  - yum -y -q install docker docker-register
+#  - systemctl enable docker
+#  - systemctl start docker
+
+  ###############################
+  # Dirac
+  - echo "-------------- dirac --------------"
+  - DIRAC_INSTALL_DIR=/var/www/cgi-bin/m2Server-gasw3/dirac
+  - mkdir -p ${DIRAC_INSTALL_DIR}
+  - wget -O ${DIRAC_INSTALL_DIR}/dirac-install --no-check-certificate -np https://raw.github.com/DIRACGrid/DIRAC/integration/Core/scripts/dirac-install.py
+  - chmod +x ${DIRAC_INSTALL_DIR}/dirac-install
+  - cd ${DIRAC_INSTALL_DIR} && ./dirac-install -V gridfr
+  - rm -f ${DIRAC_INSTALL_DIR}/dirac-install
+  # EDIT : configure VO
+
+  # EDIT : install GASWServiceHandler (see GASWServiceHandler.service
+  # to see in which directory) !!!!!!!!
+  - systemctl enable GASWServiceHandler
+  - systemctl start GASWServiceHandler
+
+  ###############################
+  # Moteur (serveur de workflows)
+  - echo "-------------- moteur --------------"
+  - wget -q https://www.creatis.insa-lyon.fr/~camarasu/moteur_vincent.tgz -O /home/vip/moteur.tgz
+  - tar -C /home/vip -xzf /home/vip/moteur.tgz
+  - rm /home/vip/moteur.tgz
+  - cd /home/vip/vincent
+
+  - mkdir -p /var/www/cgi-bin /var/www/prod
+  # The directory m2Server-gasw3 is already created when installing dirac.
+  - mv m2Server-gasw3/* /var/www/cgi-bin/m2Server-gasw3
+  - mv m2Server-gasw3/.[a-z]* /var/www/cgi-bin/m2Server-gasw3
+
+  # Update /var/www/cgi-bin/m2Server-gasw3/env.sh
+  - /root/sbin/update_env_sh.sh
+
+  # Update /var/www/cgi-bin/m2Server-gasw3/worflow-agent-0.2/workflow-agent.conf
+  - /root/sbin/update_workflow_agent_conf.sh
+
+  # Update /var/www/cgi-bin/m2Server-gasw3/.moteur2/moteur2.conf
+  - /root/sbin/update_moteur2_conf.sh
+
+  # Update /var/www/cgi-bin/m2Server-gasw3/conf/default.conf
+  - /root/sbin/update_default_conf.sh
+
+  # Update /var/www/cgi-bin/m2Server-gasw3/conf/override.conf
+  - /root/sbin/update_override_conf.sh
+
+  - mv prod_moteur2 /var/www/prod/.moteur2
+
+  # Update /var/www/.moteur2/moteur2plugins.conf
+  - /root/sbin/update_moteur2_plugin_conf.sh
+
+  - mv prod_jgasw /var/www/prod/.jgasw
+  - mv moteur2 /var/www/.moteur2
+
+  - cp /var/www/prod/.moteur2/moteur2plugins.conf /var/www/.moteur2/moteur2plugins.conf
+
+  # Should not be needed after next version of moteur2 VIP plugin
+  # https://github.com/virtual-imaging-platform/Moteur2-WorkflowsDB-Common/pull/1
+  - mkdir -p /home/vip/.moteur2
+  - cp /var/www/prod/.moteur2/moteur2plugins.conf /home/vip/.moteur2/moteur2plugins.conf
+
+  - cp /var/www/cgi-bin/m2Server-gasw3/.moteur2/moteur2.conf /var/www/.moteur2/moteur2.conf
+
+  - /root/sbin/get_gfal_to_lcg_scripts.sh
+
+  # Leave directory /home/bin/vincent before removing it.
+  - cd /root
+  - rmdir /home/vip/vincent/m2Server-gasw3
+  - rmdir /home/vip/vincent
+
+  - mkdir -p /var/www/html/workflows
+  - chown -R apache:apache /var/www
+
+  - /root/sbin/update-conf.sh /root/global_configuration.txt /root/sbin/renew_voms_for_moteur.sh
+  - echo "0 */6 * * * /root/sbin/renew_voms_for_moteur.sh >> /root/cron-renew-voms.log 2>&1" >> /var/spool/cron/root
+
+  ###############################
+  # Make vip owner of its home directory
+  - echo "-------------- vip home --------------"
+  - chown -R vip:vip /home/vip
+  - systemctl restart tomcat
+
+  ###############################
+  # Make ADMIN_EMAIL member of the "Support" group (administrators)
+  # This may take some time, as it waits that vip has created the
+  # tables, so we run it in background.
+  - echo "-------------- update vip database --------------"
+  - /root/sbin/update-vip-database.sh &
+
+  ###############################
+  # Use yum-cron to apply critical system updates
+  - echo "-------------- yum-cron --------------"
+  - yum -y -q install yum-cron
+  - systemctl stop yum-cron.service
+  - sed -ie 's/apply_updates = no/apply_updates = yes/' /etc/yum/yum-cron.conf
+  - systemctl enable yum-cron.service
+  - systemctl start yum-cron.service
+
+  ###############################
+  # Configure postfix, so that shell-scripts and sma can send mails.
+  - echo "-------------- postfix --------------"
+  - echo "relayhost = [$SMTP_SERVER]" >> /etc/postfix/main.cf
+  - systemctl restart postfix
+
+  ###############################
+  # Try again to start grida, it gives a NPE the first time.
+  - echo "-------------- restart grida --------------"
+  - systemctl start grida
+
+  ###############################
+  # Configure SELinux
+  # Allow apache to connect to postgres (moteur uses workflowdb)
+  - echo "-------------- SELinux configuration --------------"
+  - setsebool -P httpd_can_network_connect_db on
+  # Allow apache to connect to the network (moteur connects to external
+  # ressources via dirac and grida).
+  - setsebool -P httpd_can_network_connect on
+  # Allow cgi scripts to read its files.
+  - setsebool -P httpd_read_user_content on
+  # Allow cgi scripts to run java
+  - setsebool -P httpd_execmem on
+  # Allow cgi scripts to use what is created in workflow
+  # subdirectories.  Maybe change unconfined_u of moteur_server to
+  # system_u ?
+  - setsebool -P httpd_unified on
+
+  # Ajouter les restorecon pour tous les repertoires installes
+  - /usr/sbin/restorecon -r /var/www
+  - /usr/sbin/restorecon -r /home/vip
+
+  #~ - chcon -t httpd_sys_content_t /var/www/cgi-bin -R
+  #~ - chcon -t httpd_sys_scriptexec_t /var/www/cgi-bin -R
