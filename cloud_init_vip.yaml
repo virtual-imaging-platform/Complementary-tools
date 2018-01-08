@@ -618,7 +618,7 @@ write_files:
       cat > ${TMP_FILE} << EOF
       s/myproxy-server="MODIFY"/myproxy-server="${HOSTNAME}"/g
       s/myproxy-port="MODIFY"/myproxy-port="7512"/g
-      s/vo="MODIFY"/vo="${VO}"/g
+      s/vo="MODIFY"/vo="${VO_NAME}"/g
       EOF
       sed -i -f ${TMP_FILE} /var/www/cgi-bin/m2Server-gasw3/.moteur2/moteur2.conf
       rm ${TMP_FILE}
@@ -632,7 +632,7 @@ write_files:
       cat > ${TMP_FILE} << EOF
       s#LFC_HOME=[^ ]*#LFC_HOME=${LFC_HOST}${LFC_VIP_ROOT_DIR}#g
       s/LFC_HOST=[^ ]*/LFC_HOST=${LFC_HOST}/g
-      s/LCG_GFAL_VO=[^ ]*/LCG_GFAL_VO=${VO}/g
+      s/LCG_GFAL_VO=[^ ]*/LCG_GFAL_VO=${VO_NAME}/g
       s/vo\.default\.se.*$/vo.default.se=${SE_LIST}/g
       s/plugin\.dirac\.host.*$/plugin.dirac.host = localhost/g
       s/plugin\.dirac\.default\.pool.*$/plugin.dirac.default.pool=biomedPool/g
@@ -653,7 +653,7 @@ write_files:
     content: |
       #!/bin/sh
       source /root/global_configuration.txt
-      sed -i -e "s/SE=.*$/SE=\"${SE_LIST}\"/" -e "s/VO=.*$/VO=${VO}/" /var/www/cgi-bin/m2Server-gasw3/conf/override.conf
+      sed -i -e "s/SE=.*$/SE=\"${SE_LIST}\"/" -e "s/VO=.*$/VO=${VO_NAME}/" /var/www/cgi-bin/m2Server-gasw3/conf/override.conf
     permissions: '0744'
 
   - path: /root/sbin/renew_voms_for_moteur.sh
@@ -770,22 +770,22 @@ write_files:
       #!/bin/sh
       source /root/global_configuration.txt
       TMP_FILE=/tmp/create-lsc-file-and-voms-$$
-      wget -q http://operations-portal.egi.eu/xml/voIDCard/public/voname/$VO_NAME -O ${TMP_FILE}
+      wget -q http://operations-portal.egi.eu/xml/voIDCard/public/voname/${VO_NAME} -O ${TMP_FILE}
       VOMS_HOSTNAME=`xmllint --xpath '/VoDump/IDCard/gLiteConf/VOMSServers/VOMS_Server/hostname/text()' ${TMP_FILE}`
       VOMS_PORT=`xmllint --xpath 'string(/VoDump/IDCard/gLiteConf/VOMSServers/VOMS_Server/@VomsesPort)' ${TMP_FILE}`
       DN=`xmllint --xpath '/VoDump/IDCard/gLiteConf/VOMSServers/VOMS_Server/X509Cert/DN/text()' ${TMP_FILE}`
       CA_DN=`xmllint --xpath '/VoDump/IDCard/gLiteConf/VOMSServers/VOMS_Server/X509Cert/CA_DN/text()' ${TMP_FILE}`
 
-      mkdir -p /etc/grid-security/vomsdir/$VO_NAME
-      FILENAME=/etc/grid-security/vomsdir/$VO_NAME/${VOMS_HOSTNAME}.lsc
+      mkdir -p /etc/grid-security/vomsdir/${VO_NAME}
+      FILENAME=/etc/grid-security/vomsdir/${VO_NAME}/${VOMS_HOSTNAME}.lsc
       echo $DN > ${FILENAME}
       echo ${CA_DN} >> ${FILENAME}
 
       mkdir -p /etc/vomses
       chmod 755 /etc/vomses
 
-      VOMS_FILENAME=/etc/vomses/${VO}-${VOMS_HOSTNAME}.vo.ncm-vomsclient
-      echo "\"${VO}\" \"${VOMS_HOSTNAME}\" \"${VOMS_PORT}\" \"${DN}\" \"${VO}\"" > ${VOMS_FILENAME}
+      VOMS_FILENAME=/etc/vomses/${VO_NAME}-${VOMS_HOSTNAME}.vo.ncm-vomsclient
+      echo "\"${VO_NAME}\" \"${VOMS_HOSTNAME}\" \"${VOMS_PORT}\" \"${DN}\" \"${VO_NAME}\"" > ${VOMS_FILENAME}
 
       rm -f ${TMP_FILE}
     permissions: '0744'
