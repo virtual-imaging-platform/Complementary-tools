@@ -1124,7 +1124,7 @@ runcmd:
   - echo "30 4 * * * systemctl restart tomcat" >> /var/spool/cron/root
 
   ###############################
-  # Install docker, which is used by moteur to run local applications.
+  # Install docker, which may be used by moteur to run local applications.
 #  - echo "-------------- docker --------------"
 #  - yum -y -q install docker docker-register
 #  - systemctl enable docker
@@ -1139,7 +1139,8 @@ runcmd:
   - chmod +x ${DIRAC_INSTALL_DIR}/dirac-install
   - cd ${DIRAC_INSTALL_DIR} && ./dirac-install -V gridfr
   - rm -f ${DIRAC_INSTALL_DIR}/dirac-install
-  # EDIT : configure VO
+  # Dirac configuration needs a proxy certificate.  See instructions
+  # in the README.md file.
 
   # EDIT : install GASWServiceHandler (see GASWServiceHandler.service
   # to see in which directory) !!!!!!!!
