@@ -455,11 +455,14 @@ write_files:
     content: |
       <VirtualHost *:80>
         ServerName <HOSTNAME>
-        Redirect permanent /vip-portal-1.21 https://<HOSTNAME>/vip-portal-1.21
+        Redirect permanent /vip-portal https://<HOSTNAME>/vip-portal
+        Redirect permanent /vip https://<HOSTNAME>/vip-portal
       </VirtualHost>
 
       <VirtualHost *:443>
         ServerName <HOSTNAME>
+
+        Redirect permanent /vip https://sbgsol.in2p3.fr/vip-portal
 
         Header always set Strict-Transport-Security "max-age=63072000;"
 
@@ -487,8 +490,8 @@ write_files:
           Allow from all
         </Proxy>
 
-        ProxyPass /vip-portal-1.21 ajp://localhost:8009/vip-portal-1.21
-        ProxyPassReverse /vip-portal-1.21 ajp://localhost:8009/vip-portal-1.21
+        ProxyPass /vip-portal ajp://localhost:8009/vip-portal
+        ProxyPassReverse /vip-portal ajp://localhost:8009/vip-portal
       </VirtualHost>
     permissions: '0644'
 
@@ -1104,7 +1107,7 @@ runcmd:
   - echo "-------------- tomcat --------------"
   - TOMCAT_VERSION="8.5.24"
   - curl -sS http://mirror.ibcp.fr/pub/apache/tomcat/tomcat-8/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz | tar -C /home/vip -zxf -
-  - wget -q https://github.com/virtual-imaging-platform/VIP-portal/releases/download/1.21/vip-portal-1.21.war -O /home/vip/apache-tomcat-${TOMCAT_VERSION}/webapps/vip-portal-1.21.war
+  - wget -q https://github.com/virtual-imaging-platform/VIP-portal/releases/download/1.21/vip-portal-1.21.war -O /home/vip/apache-tomcat-${TOMCAT_VERSION}/webapps/vip-portal.war
   - chown -R vip:vip /home/vip/apache-tomcat-${TOMCAT_VERSION}
   - chown vip:vip /home/vip/.vip/vip.conf # write_files cannot do it.
   - sed -i -e "s/<TOMCAT_VERSION>/${TOMCAT_VERSION}/g" /etc/systemd/system/tomcat.service
