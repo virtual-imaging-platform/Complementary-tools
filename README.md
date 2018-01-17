@@ -11,14 +11,20 @@ at the start of the file.
 Once the VM has been instanciated using the cloud-init file, several
 certifacates must be manually copied to the VM:
 
-#### Dirac robot certificate
+#### Robot certificate used for vip / moteur / dirac
 
 Upload the file:
 ```shell
 /tmp/dirac-robot
 ```
 
-#### Myproxy certificates
+This file must be regularly updated so that the proxy never expires.
+It is used throu cron files to creates the proxies used by vip, moteur
+and dirac.
+
+#### Myproxy certificates ???
+
+myproxy is no more used.  This part is probably useless.
 
 Upload the files:
 ```shell
@@ -31,20 +37,6 @@ Run the commands:
 cd /etc/grid-security/myproxy
 chown myproxy:root * && chmod 600 hostkey.pem
 systemctl restart myproxy-server
-```
-
-#### Globus certificates
-
-Upload the files:
-```shell
-/home/vip/.globus/usercert.pem
-/home/vip/.globus/userkey.pem
-```
-
-Run the commands:
-```shell
-chown -R vip:vip /home/vip/.globus
-chmod 700 /home/vip/.globus
 ```
 
 #### Machine certificate
@@ -61,7 +53,7 @@ in the directories:
 
 Create a proxy with the voms extension:
 ```shell
-/root/sbin/renew_voms_for_moteur.sh >> /root/cron-renew-voms.log 2>&1
+/root/sbin/update_proxy_for_vip_moteur_dirac.sh >> /root/cron-update-proxy.log 2>&1
 ```
 
 Configure dirac vomsdir.  Replace `<VO_NAME>` with the name of the VO
@@ -71,9 +63,4 @@ that you have configured in the `cloud_init_vip.yaml` file, eg
 cd /var/www/cgi-bin/m2Server-gasw3/dirac
 export X509_USER_PROXY=/var/www/html/workflows/dirac-robot-<VO_NAME>
 scripts/dirac-configure defaults-gridfr.cfg
-```
-
-Initialise myproxy the first time:
-```shell
-/home/vip/robotcert/uploadRobot.sh
 ```

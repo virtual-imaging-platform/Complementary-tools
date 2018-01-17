@@ -499,7 +499,7 @@ write_files:
     content: |
       [Unit]
       Description=Tomcat
-      Requires=grida.service sma.service httpd.service myproxy-server.service
+      Requires=grida.service sma.service httpd.service
       [Service]
       User=vip
       Type=forking
@@ -568,23 +568,6 @@ write_files:
       FILE=`set -- /usr/lib/jvm/java-1.7.0-openjdk-1.7.0.*.x86_64/jre/lib/security/java.security; echo $1`
       echo "security.provider.10=org.bouncycastle.jce.provider.BouncyCastleProvider" >> ${FILE}
       unset FILE
-    permissions: '0744'
-
-  - path: /root/sbin/update_myproxy_server_config.sh
-    content: |
-      #!/bin/sh
-      cat >> /etc/myproxy-server.config <<EOF
-
-      # Parameters added by cloud-init configuration script.
-      accepted_credentials "\/O=GRID-FR\/C=FR\/O=CNRS\/*"
-      authorized_retrievers "*"
-      authorized_renewers "*"
-      authorized_key_retrievers "\/O=GRID-FR\/C=FR\/O=CNRS\/*"
-      trusted_retrievers "*"
-      default_trusted_retrievers "none"
-      max_proxy_lifetime 24
-      max_cred_lifetime 800
-      EOF
     permissions: '0744'
 
   - path: /root/sbin/update_env_sh.sh
@@ -663,7 +646,7 @@ write_files:
       sed -i -e "s/SE=.*$/SE=\"${SE_LIST}\"/" -e "s/VO=.*$/VO=${VO_NAME}/" /var/www/cgi-bin/m2Server-gasw3/conf/override.conf
     permissions: '0744'
 
-  - path: /root/sbin/renew_voms_for_moteur.sh
+  - path: /root/sbin/update_proxy_for_vip_moteur_dirac.sh
     content: |
       #!/bin/sh
       # This script supposes the existence of a valid proxy in /tmp/dirac-robot.
@@ -672,11 +655,26 @@ write_files:
       echo "---------------------------------------------------------------"
       date
       echo "Add <VO_NAME> VOMS"
+      ORIG_FILE=/tmp/dirac-robot
       DEST_FILE=/var/www/html/workflows/dirac-robot-<VO_NAME>
-      X509_USER_PROXY=/tmp/dirac-robot voms-proxy-init -n --out $DEST_FILE --voms <VO_NAME>
+      X509_USER_PROXY=${ORIG_FILE} voms-proxy-init -n --out $DEST_FILE --voms <VO_NAME>
       chmod 600 $DEST_FILE
       chown apache:apache $DEST_FILE
       /usr/sbin/restorecon $DEST_FILE
+
+      echo "Set vip proxy file"
+      VIP_PROXY_FILE=/home/vip/.vip/proxies/x509up_server
+      cp ${ORIG_FILE} ${VIP_PROXY_FILE}
+      chmod 600 ${VIP_PROXY_FILE}
+      chown vip:vip ${VIP_PROXY_FILE}
+      /usr/sbin/restorecon ${VIP_PROXY_FILE}
+
+      echo "Set vip proxy file with voms"
+      VIP_PROXY_FILE_VOMS=/home/vip/.vip/proxies/<VO_NAME>/x509up_server
+      cp ${DEST_FILE} ${VIP_PROXY_FILE_VOMS}
+      chmod 600 ${VIP_PROXY_FILE_VOMS}
+      chown vip:vip ${VIP_PROXY_FILE_VOMS}
+      /usr/sbin/restorecon ${VIP_PROXY_FILE_VOMS}
     permissions: '0744'
 
   - path: /root/sbin/update_moteur2_plugin_conf.sh
@@ -718,58 +716,6 @@ write_files:
       unset GFAL_LOGS
       unset MOTEUR_BIN
       unset GITHUB_GFAL_URI
-    permissions: '0744'
-
-  - path: /home/vip/robotcert/uploadRobot.sh
-    content: |
-      #! /bin/bash
-
-      LOG=/home/vip/robotcert/uploadRobot.log
-      EMAILADMIN=<ADMIN_EMAIL>
-      EMAILSUBJPREFIX="[SBGSOL] Robot certificate"
-      X509_USER_PROXY=/tmp/dirac-robot
-      X509_USER_PROXY_NOVOMS=/tmp/dirac-robot-novoms
-
-      ROBOTCERT=/home/vip/.globus/usercert.pem
-      ROBOTKEY=/home/vip/.globus/userkey.pem
-      ROBOTPASSFILE=/home/vip/robotcert/passphrase.txt
-
-      # Same password as in ~vip/.vip/vip.conf
-      MYPROXYPASS=<MYPROXY_PASSWORD>
-      MYPROXYPORT=7512
-      MYPROXYHOST=<HOSTNAME>
-
-      function main() {
-        echo
-        echo "###############################################################"
-        date
-
-        # D'abord creer un proxy local
-        echo "------ voms-proxy-init ------"
-        voms-proxy-init -pwstdin --valid 1000:0 -cert ${ROBOTCERT} -key ${ROBOTKEY} -out ${X509_USER_PROXY_NOVOMS} < ${ROBOTPASSFILE}
-
-        if [ $? != 0 ]; then
-          echo "couldn't voms-proxy-init robot certificate"
-          echo "couldn't voms-proxy-init robot certificate" | mailx -s "${EMAILSUBJPREFIX} error" ${EMAILADMIN}
-          #exit 1
-        fi
-
-        # Ensuite uploader ce proxy local sur le serveur myproxy, en le
-        # protegeant par la passphrase
-
-        echo "------ myproxy-init ------"
-        echo ${MYPROXYPASS} | myproxy-init -p ${MYPROXYPORT} -v -S -s ${MYPROXYHOST} -d -C ${X509_USER_PROXY_NOVOMS} -y ${X509_USER_PROXY_NOVOMS} -t 1000
-
-        if [ $? != 0 ]; then
-          echo "couldn't myproxy-init robot certificate"
-          echo "couldn't myproxy-init robot certificate" | mailx -s "${EMAILSUBJPREFIX} error" ${EMAILADMIN}
-        else
-          echo "successfully renewed robot proxy certificate on myproxy server"
-          echo "successfully renewed robot proxy certificate on myproxy server" | mailx -s "${EMAILSUBJPREFIX} success" ${EMAILADMIN}
-        fi
-      }
-
-      main >> ${LOG} 2>&1
     permissions: '0744'
 
   - path: /root/sbin/create-lsc-file-and-voms.sh
@@ -889,7 +835,7 @@ write_files:
         echo -e "Enforce mode is ${prefix}${mode}${NOCOLOR}"
       }
 
-      services="fail2ban fetch-crl-cron GASWServiceHandler grida h2 haveged httpd mariadb myproxy-server postfix sma tomcat"
+      services="fail2ban fetch-crl-cron GASWServiceHandler grida h2 haveged httpd mariadb postfix sma tomcat"
       check_services $services
 
       check_audit
@@ -953,35 +899,8 @@ runcmd:
   - yum -y -q install java-1.7.0-openjdk
 
   ###############################
-  # Myproxy server
-  - echo "-------------- Myproxy server --------------"
-  - yum -y -q install myproxy myproxy-server
-  - /root/sbin/update_myproxy_server_config.sh
-  - systemctl restart myproxy-server
-  # The certificates in /etc/grid-security/myproxy must be installed
-  # manually.
-  # - chown -R myproxy /etc/grid-security/myproxy
-  # - chmod 600 /etc/grid-security/myproxy/*key.pem
-
-  - /root/sbin/create-lsc-file-and-voms.sh
-
-  # Edit /etc/myproxy-server.config ??
-  # put my cert into ~vip/.globus
-  # run command (with vip user) so that my certs are used
-  # myproxy-init -p 7512 -v -s sbgsol.in2p3.fr -d -c 23
-  - chown vip:vip /home/vip/robotcert/uploadRobot.sh # write_files cannot do it.
-  - echo ${PASSPHRASE} > /home/vip/robotcert/passphrase.txt
-  - chown vip:vip /home/vip/robotcert/passphrase.txt
-  - chmod 400 /home/vip/robotcert/passphrase.txt
-  - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/robotcert/uploadRobot.sh
-  - echo "30 7,23 * * * /home/vip/robotcert/uploadRobot.sh" >> /var/spool/cron/vip
-  - systemctl enable myproxy-server.service
-  - systemctl start myproxy-server.service
-
-  ###############################
   # Create auto-signed certificate => to be replaced by correct
   # certificate.  Before httpd, which needs the certificate.
-  # After myproxy installation, so that myproxy user exists.
   - echo "-------------- autosigned certificates --------------"
   - HOSTNAME_FILE=`echo ${HOSTNAME} | sed -e 's/\./_/g'`
   - TMP_FILE=/tmp/server-$$.csr
@@ -989,12 +908,6 @@ runcmd:
   - openssl req -new -subj "/C=FR/O=CNRS/CN=GRID-FR/OU=IPHC/CN=${HOSTNAME}" -key /etc/pki/tls/private/${HOSTNAME_FILE}.key -out ${TMP_FILE}
   - openssl x509 -req -days 365 -in ${TMP_FILE} -signkey /etc/pki/tls/private/${HOSTNAME_FILE}.key -out /etc/pki/tls/certs/${HOSTNAME_FILE}.crt
   - rm -f ${TMP_FILE}
-
-  # The myproxy certificates must be grid certificates.  They must be
-  # installed from outside of the server.  We just create the
-  # directory.
-  - mkdir -p /etc/grid-security/myproxy
-  - chown -R myproxy /etc/grid-security/myproxy
 
   - unset TMP_FILE
   - unset HOSTNAME_FILE
@@ -1103,7 +1016,7 @@ runcmd:
   - systemctl start grida.service
 
   ###############################
-  # Tomcat : needs grida, sma, httpd and myproxy-server
+  # Tomcat : needs grida, sma, httpd.
   - echo "-------------- tomcat --------------"
   - TOMCAT_VERSION="8.5.24"
   - curl -sS http://mirror.ibcp.fr/pub/apache/tomcat/tomcat-8/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz | tar -C /home/vip -zxf -
@@ -1202,12 +1115,17 @@ runcmd:
   - mkdir -p /var/www/html/workflows
   - chown -R apache:apache /var/www
 
-  - /root/sbin/update-conf.sh /root/global_configuration.txt /root/sbin/renew_voms_for_moteur.sh
-  - echo "0 */6 * * * /root/sbin/renew_voms_for_moteur.sh >> /root/cron-renew-voms.log 2>&1" >> /var/spool/cron/root
+  - /root/sbin/update-conf.sh /root/global_configuration.txt /root/sbin/update_proxy_for_vip_moteur_dirac.sh
+  - echo "0 */6 * * * /root/sbin/update_proxy_for_vip_moteur_dirac.sh >> /root/cron-update-proxy.log 2>&1" >> /var/spool/cron/root
+
+  ###############################
+  - echo "-------------- Installing voms --------------"
+  - /root/sbin/create-lsc-file-and-voms.sh
 
   ###############################
   # Make vip owner of its home directory
   - echo "-------------- vip home --------------"
+  - mkdir -p /home/vip/.vip/proxies/${VO_NAME}
   - chown -R vip:vip /home/vip
   - systemctl restart tomcat
 
