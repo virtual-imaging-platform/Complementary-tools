@@ -136,9 +136,9 @@ write_files:
   - path: /root/.bash_history
     permissions: '0644'
     content: |
+      ~/sbin/status
       less /var/log/cloud-init.log
       tail -f /var/log/cloud-init.log
-      ~/sbin/status
 
   - path: /etc/my.cnf.d/vip.cnf
     content: |
@@ -614,11 +614,11 @@ write_files:
       rm ${TMP_FILE}
     permissions: '0744'
 
-  - path: /root/sbin/update_default_conf.sh
+  - path: /root/sbin/update_moteur_default_conf.sh
     content: |
       #!/bin/sh
       source /root/global_configuration.txt
-      TMP_FILE=/tmp/update_default_conf-$$.txt
+      TMP_FILE=/tmp/update_moteur_default_conf-$$.txt
       cat > ${TMP_FILE} << EOF
       s#LFC_HOME=[^ ]*#LFC_HOME=${LFC_HOST}${LFC_VIP_ROOT_DIR}#g
       s/LFC_HOST=[^ ]*/LFC_HOST=${LFC_HOST}/g
@@ -639,7 +639,7 @@ write_files:
       rm ${TMP_FILE}
     permissions: '0744'
 
-  - path: /root/sbin/update_override_conf.sh
+  - path: /root/sbin/update_moteur_override_conf.sh
     content: |
       #!/bin/sh
       source /root/global_configuration.txt
@@ -689,33 +689,9 @@ write_files:
       s#connection\.url.*\$#connection\.url = jdbc:mysql://localhost:3306/workflowsdb#
       EOF
 
+      sed -i -f ${TMP_FILE} /var/www/.moteur2/moteur2plugins.conf
       sed -i -f ${TMP_FILE} /var/www/prod/.moteur2/moteur2plugins.conf
       rm ${TMP_FILE}
-    permissions: '0744'
-
-  - path: /root/sbin/get_gfal_to_lcg_scripts.sh
-    content: |
-      #! /bin/bash
-      MOTEUR_BIN=/var/www/cgi-bin/m2Server-gasw3/bin
-      GITHUB_GFAL_URI=https://raw.githubusercontent.com/virtual-imaging-platform/Complementary-tools/master/lcg-gfal
-      mkdir -p ${MOTEUR_BIN}
-      for f in lcg-compat.sh lcg-cp lcg-cr lcg-del
-      do
-        wget -q ${GITHUB_GFAL_URI}/$f -O ${MOTEUR_BIN}/$f
-      done
-      /root/sbin/update-conf.sh /root/global_configuration.txt ${MOTEUR_BIN}/lcg-cr
-      # The log file must exist.
-      GFAL_LOGS=/var/www/cgi-bin/m2Server-gasw3/gfal.log
-      touch ${GFAL_LOGS}
-      chmod 0644 ${GFAL_LOGS}
-      chown apache:apache ${GFAL_LOGS}
-
-      chown apache:apache ${MOTEUR_BIN}/*
-      chmod +x ${MOTEUR_BIN}/*
-
-      unset GFAL_LOGS
-      unset MOTEUR_BIN
-      unset GITHUB_GFAL_URI
     permissions: '0744'
 
   - path: /root/sbin/create-lsc-file-and-voms.sh
@@ -991,7 +967,7 @@ runcmd:
   - echo "-------------- sma --------------"
   - mkdir -p /home/vip/sma
   - cd /home/vip/sma && wget -q https://github.com/virtual-imaging-platform/SMA/releases/download/r_0_1/sma-server-0.1.zip
-  - cd /home/vip/sma && unzip sma-server-0.1.zip
+  - cd /home/vip/sma && unzip -q sma-server-0.1.zip
   - rm -f sma-server-0.1.zip
   - chown -R vip:vip /home/vip/sma
   - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/sma/sma-server.conf
@@ -1063,15 +1039,50 @@ runcmd:
   ###############################
   # Moteur (serveur de workflows)
   - echo "-------------- moteur --------------"
-  - wget -q https://www.creatis.insa-lyon.fr/~camarasu/moteur_vincent.tgz -O /home/vip/moteur.tgz
-  - tar -C /home/vip -xzf /home/vip/moteur.tgz
-  - rm /home/vip/moteur.tgz
-  - cd /home/vip/vincent
-
-  - mkdir -p /var/www/cgi-bin /var/www/prod
+  - cd /home/vip
+  - export MOTEUR_DEST_DIR=/var/www/cgi-bin/m2Server-gasw3
   # The directory m2Server-gasw3 is already created when installing dirac.
-  - mv m2Server-gasw3/* /var/www/cgi-bin/m2Server-gasw3
-  - mv m2Server-gasw3/.[a-z]* /var/www/cgi-bin/m2Server-gasw3
+
+  # Install moteur_server executable, env file and scripts
+  - wget -q https://github.com/virtual-imaging-platform/moteur_server/releases/download/v1.0/moteur_server-v1.0-centos7.tar.gz
+  # The '*' is to be independant of the version.
+  - tar xzf moteur_server-*-centos7.tar.gz
+  - mv moteur_server-*-centos7/moteur_server ${MOTEUR_DEST_DIR}
+  - rm -rf moteur_server-*-centos7*
+
+  - export MOTEUR_SERVER_RAW_FILES=https://raw.githubusercontent.com/virtual-imaging-platform/moteur_server/master
+  - wget -q ${MOTEUR_SERVER_RAW_FILES}/env.sh -O ${MOTEUR_DEST_DIR}/env.sh
+  - wget -q ${MOTEUR_SERVER_RAW_FILES}/killWorkflow.sh -O ${MOTEUR_DEST_DIR}/killWorkflow.sh
+  - wget -q ${MOTEUR_SERVER_RAW_FILES}/submitWorkflow.sh -O ${MOTEUR_DEST_DIR}/submitWorkflow.sh
+  - chmod +x ${MOTEUR_DEST_DIR}/killWorkflow.sh ${MOTEUR_DEST_DIR}/submitWorkflow.sh
+
+  # Install moteur complementary tools
+  - wget -q https://github.com/virtual-imaging-platform/Complementary-tools/archive/master.zip -O Complementary-tools.zip
+  - unzip -q Complementary-tools.zip
+  - rm Complementary-tools.zip
+  # The '*' is for the name of the branch.  master, or something other
+  # when testing.
+  - cd Complementary-tools-*
+
+  - cp -r conf/.moteur2 /var/www
+  - mkdir ${MOTEUR_DEST_DIR}/.moteur2
+  - mv conf/.moteur2/moteur2.conf ${MOTEUR_DEST_DIR}/.moteur2
+  - mv conf/prod /var/www/prod
+
+  - mkdir ${MOTEUR_DEST_DIR}/bin
+  - mv lcg-gfal/* ${MOTEUR_DEST_DIR}/bin
+  - /root/sbin/update-conf.sh /root/global_configuration.txt ${MOTEUR_DEST_DIR}/bin/lcg-cr
+  # The log file must exist.
+  - export GFAL_LOGS=${MOTEUR_DEST_DIR}/gfal.log
+  - touch ${GFAL_LOGS}
+  - chmod 0644 ${GFAL_LOGS}
+  - unset GFAL_LOGS
+
+  - mv moteur/* ${MOTEUR_DEST_DIR}
+
+  # Leave directory /home/bin/vincent before removing it.
+  - cd /root
+  - rm -rf /home/vip/Complementary-tools-*
 
   # Update /var/www/cgi-bin/m2Server-gasw3/env.sh
   - /root/sbin/update_env_sh.sh
@@ -1083,34 +1094,22 @@ runcmd:
   - /root/sbin/update_moteur2_conf.sh
 
   # Update /var/www/cgi-bin/m2Server-gasw3/conf/default.conf
-  - /root/sbin/update_default_conf.sh
+  - /root/sbin/update_moteur_default_conf.sh
 
   # Update /var/www/cgi-bin/m2Server-gasw3/conf/override.conf
-  - /root/sbin/update_override_conf.sh
-
-  - mv prod_moteur2 /var/www/prod/.moteur2
+  - /root/sbin/update_moteur_override_conf.sh
 
   # Update /var/www/.moteur2/moteur2plugins.conf
   - /root/sbin/update_moteur2_plugin_conf.sh
-
-  - mv prod_jgasw /var/www/prod/.jgasw
-  - mv moteur2 /var/www/.moteur2
-
-  - cp /var/www/prod/.moteur2/moteur2plugins.conf /var/www/.moteur2/moteur2plugins.conf
 
   # Should not be needed after next version of moteur2 VIP plugin
   # https://github.com/virtual-imaging-platform/Moteur2-WorkflowsDB-Common/pull/1
   - mkdir -p /home/vip/.moteur2
   - cp /var/www/prod/.moteur2/moteur2plugins.conf /home/vip/.moteur2/moteur2plugins.conf
 
-  - cp /var/www/cgi-bin/m2Server-gasw3/.moteur2/moteur2.conf /var/www/.moteur2/moteur2.conf
+  - cp ${MOTEUR_DEST_DIR}/.moteur2/moteur2.conf /var/www/.moteur2/moteur2.conf
 
-  - /root/sbin/get_gfal_to_lcg_scripts.sh
-
-  # Leave directory /home/bin/vincent before removing it.
-  - cd /root
-  - rmdir /home/vip/vincent/m2Server-gasw3
-  - rmdir /home/vip/vincent
+  - unset MOTEUR_DEST_DIR
 
   - mkdir -p /var/www/html/workflows
   - chown -R apache:apache /var/www
