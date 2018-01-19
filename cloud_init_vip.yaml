@@ -77,7 +77,6 @@ write_files:
       ADMIN_EMAIL=MODIFY
       MYPROXY_USER=MODIFY
       MYPROXY_PASSWORD=MODIFY
-      PASSPHRASE=MODIFY
       VO_NAME=biomed
       VO_ROOT=/grid/biomed
       LFC_HOST=lfc-biomed.in2p3.fr
@@ -1107,7 +1106,8 @@ runcmd:
   - mkdir -p /home/vip/.moteur2
   - cp /var/www/prod/.moteur2/moteur2plugins.conf /home/vip/.moteur2/moteur2plugins.conf
 
-  - cp ${MOTEUR_DEST_DIR}/.moteur2/moteur2.conf /var/www/.moteur2/moteur2.conf
+  # After it has been updated.
+  - cp ${MOTEUR_DEST_DIR}/.moteur2/moteur2.conf /var/www/.moteur2
 
   - unset MOTEUR_DEST_DIR
 
