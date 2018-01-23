@@ -674,6 +674,10 @@ write_files:
       chmod 600 ${VIP_PROXY_FILE_VOMS}
       chown vip:vip ${VIP_PROXY_FILE_VOMS}
       /usr/sbin/restorecon ${VIP_PROXY_FILE_VOMS}
+
+      echo "Set dirac proxy"
+      source /var/www/cgi-bin/m2Server-gasw3/dirac/bashrc
+      X509_USER_PROXY=${ORIG_FILE} dirac-admin-proxy-upload -P ${ORIG_FILE} -g <VO_NAME>_user
     permissions: '0744'
 
   - path: /root/sbin/update_moteur2_plugin_conf.sh
