@@ -51,18 +51,29 @@ in the directories:
 
 #### Final commands
 
+The following commands need that the file `/tmp/dirac-robot` exists
+and is the valid proxy that will be used.
+
+Create a proxy with the voms extension.  This is done regularly via
+cron, but must be done once, so that the proxies can be used
+immediately.  This is the first run of the script, with the option
+`--no-dirac`, as dirac has not yet been initialised.
+```shell
+/root/sbin/update_proxy_for_vip_moteur_dirac.sh --no-dirac >> /root/cron-update-proxy.log 2>&1
+```
+
 Configure dirac vomsdir.  Replace `<VO_NAME>` with the name of the VO
 that you have configured in the `cloud_init_vip.yaml` file, eg
-`biomed`.
+`biomed`.  This can only be done with a correct proxy.
 ```shell
 cd /var/www/cgi-bin/m2Server-gasw3/dirac
 export X509_USER_PROXY=/var/www/html/workflows/dirac-robot-<VO_NAME>
 scripts/dirac-configure defaults-gridfr.cfg
 ```
 
-Create a proxy with the voms extension.  It must be done after the
-above dirac configuration.  This is done regularly via cron, but must
-be done once, so that the proxies can be used immediately.
+Now that dirac has been configured, run again the creation of the
+proxies, but this time without the `--no-dirac` option, to update also
+the dirac proxy.
 ```shell
 /root/sbin/update_proxy_for_vip_moteur_dirac.sh >> /root/cron-update-proxy.log 2>&1
 ```
