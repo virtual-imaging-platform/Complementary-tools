@@ -1000,7 +1000,11 @@ runcmd:
   ###############################
   # Tomcat : needs grida, sma, httpd.
   - echo "-------------- tomcat --------------"
-  - TOMCAT_VERSION="8.5.24"
+  # If installation of tomcat fails, it is probably that the version
+  # has evolved, and the one used is no more accessible.  Go to
+  # http://mirror.ibcp.fr/pub/apache/tomcat/tomcat-8, check what
+  # version is available, and update it in the line below.
+  - TOMCAT_VERSION="8.5.27"
   - curl -sS http://mirror.ibcp.fr/pub/apache/tomcat/tomcat-8/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz | tar -C /home/vip -zxf -
   - wget -q https://github.com/virtual-imaging-platform/VIP-portal/releases/download/1.21/vip-portal-1.21.war -O /home/vip/apache-tomcat-${TOMCAT_VERSION}/webapps/vip-portal.war
   - chown -R vip:vip /home/vip/apache-tomcat-${TOMCAT_VERSION}
@@ -1164,8 +1168,8 @@ runcmd:
 
   ###############################
   # Configure SELinux
-  # Allow apache to connect to postgres (moteur uses workflowdb)
   - echo "-------------- SELinux configuration --------------"
+  # Allow apache to connect to postgres (moteur uses workflowdb)
   - setsebool -P httpd_can_network_connect_db on
   # Allow apache to connect to the network (moteur connects to external
   # ressources via dirac and grida).
