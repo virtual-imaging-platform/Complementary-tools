@@ -1090,6 +1090,9 @@ runcmd:
 
   - mv moteur/* ${MOTEUR_DEST_DIR}
 
+  # File for selinux configuration, use later.
+  - cp vip.te /root
+
   # Leave directory /home/bin/vincent before removing it.
   - cd /root
   - rm -rf /home/vip/Complementary-tools-*
@@ -1182,10 +1185,29 @@ runcmd:
   # subdirectories.  Maybe change unconfined_u of moteur_server to
   # system_u ?
   - setsebool -P httpd_unified on
+  # This is probably because of /home/vip/sbin (which should probably
+  # be moved to somewhere under /var/www/cgi-bin.  See below.
+  - setsebool -P httpd_enable_homedirs on
 
-  # Ajouter les restorecon pour tous les repertoires installes
+  # dmesg is allowed to read /dev/kmsg.  This happens when running a
+  # job with moteur, don't ask me why.
+  - setsebool -P domain_can_write_kmsg on
+
+  - export MOTEUR_DEST_DIR=/var/www/cgi-bin/m2Server-gasw3
+  - semanage fcontext -a -f f -t httpd_sys_rw_content_t ${MOTEUR_DEST_DIR}/moteur_service.log
+  - semanage fcontext -a -f f -t httpd_sys_rw_content_t ${MOTEUR_DEST_DIR}/gfal.log
+  - semanage fcontext -a -f f -t httpd_sys_rw_content_t ${MOTEUR_DEST_DIR}/dirac/Linux_x86_64_glibc-2.17/lib/python2.7
+  - unset MOTEUR_DEST_DIR
+
+  # Maybe move this directory somewhere under /var/www/cgi-bin.
+  - semanage fcontext -a -t httpd_sys_script_exec_t "/home/vip/sbin(/.*)?"
+
   - /usr/sbin/restorecon -r /var/www
   - /usr/sbin/restorecon -r /home/vip
 
-  #~ - chcon -t httpd_sys_content_t /var/www/cgi-bin -R
-  #~ - chcon -t httpd_sys_scriptexec_t /var/www/cgi-bin -R
+  - cd
+  - checkmodule -M -m -o vip.mod vip.te
+  - semodule_package -o vip.pp -m vip.mod
+  - semodule -i vip.pp
+
+#  - setenforce Enforcing
