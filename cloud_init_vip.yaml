@@ -584,7 +584,10 @@ write_files:
       rm ${TMP_FILE}
       cat >> /var/www/cgi-bin/m2Server-gasw3/env.sh <<EOF
 
-      # Give access to lcg-* binaries.
+      # Give access to lcg-* binaries.  This must be done at the end
+      # of the file, after the PATH has been updated by bashrc, which
+      # adds the not working binaries coming with dirac.
+
       #export PATH=\$PATH:/usr/share/lcgBundles/Linux_x86_64_glibc-2.12/bin
       #export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/share/lcgBundles/Linux_x86_64_glibc-2.12/lib
       export PATH=/var/www/cgi-bin/m2Server-gasw3/bin:\$PATH
