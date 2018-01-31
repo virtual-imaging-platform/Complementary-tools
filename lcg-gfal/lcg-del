@@ -1,0 +1,186 @@
+#!/bin/sh
+#set -x
+set -o errexit -o noclobber -o nounset
+
+# This script transforms a lcg-del command to an equivalent gfal-rm
+# command.
+#
+# - The output of the gfal-rm command is logged to the file defined
+#   in the constant LOG_FILE if it exists and is writable.  If not, it
+#   will output to stdout and stderr.  Errors in the input parameters
+#   are always logged to stderr.  Modify the constant LOG_FILE at the
+#   start of the script.
+#
+# - Environment variables LCG_GFAL_INFOSYS and X509_USER_PROXY must be
+#   defined and have sensible values.
+
+# Constants
+
+LOG_FILE=/home/vip/gfal/gfal.log
+PYTHON=/bin/python
+GFAL_RM=/bin/gfal-rm
+
+# End of constants
+
+INPUT_ARGS="$0 $*"
+
+show_help() {
+    echo "This script transforms a lcg-del command to an equivalent gfal-rm command."
+    echo "$0 [ -a ] [ --config config_file ] [ -h,--help ] [ --force ] [ -D,--defaultsetype defaulttype ] [ -T,--setypesetype ] [ -s,--se se ] [ --connect-timeout conntimeout ] [ --sendreceive-timeout sndtimeout ] [ --bdii-timeout bdiitimeout ] [ --srm-timeout srmtimeout ] [ --vo virtual_organization ] [ -d,--dir ] [ -b,--nobdii ] [ -l,--nolfc ] [ -v,--verbose ] [ --version ] ( -f,--file localfile | gridfile [...] )"
+}
+
+params=`getopt --options ahD:T:s:dblvf: --long config:,help,force,defaultsetype:,setype:,se:,connect-timeout:,sendreceive-timeout:,bdii-timeout:,srm-timeout:,vo:,dir,nobdii,nolfc,verbose,version,file: --name $0 -- $@`
+eval set -- "$params"
+
+GFAL_OPTIONS=""
+VO="${LCG_GFAL_VO:-}"
+TOTAL_TIMEOUTS=0
+FORCE=false
+
+while true
+do
+    case "$1" in
+        -a)
+            echo "WARNING: $1 option is ignored" >&2
+            shift
+            ;;
+        --config)
+            CONFIG_FILE="$2"
+            echo "WARNING: $1 option is ignored" >&2
+            shift 2
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        --force)
+            FORCE=true
+            shift
+            ;;
+        -D|--defaultsetype)
+            DEFAULT_SETYPE="$2"
+            echo "WARNING: $1 option is ignored" >&2
+            shift 2
+            ;;
+        -T|--setype)
+            SETYPE="$2"
+            echo "WARNING: $1 option is ignored" >&2
+            shift 2
+            ;;
+        -s|--se)
+            SE="$2"
+            echo "WARNING: $1 option is ignored" >&2
+            shift 2
+            ;;
+        --connect-timeout)
+            TOTAL_TIMEOUTS=$(($TOTAL_TIMEOUTS + $2))
+            shift 2
+            ;;
+        --sendreceive-timeout)
+            TOTAL_TIMEOUTS=$(($TOTAL_TIMEOUTS + $2))
+            shift 2
+            ;;
+        --bdii-timeout)
+            TOTAL_TIMEOUTS=$(($TOTAL_TIMEOUTS + $2))
+            shift 2
+            ;;
+        --srm-timeout)
+            TOTAL_TIMEOUTS=$(($TOTAL_TIMEOUTS + $2))
+            shift 2
+            ;;
+        --vo)
+            VO="$2"
+            echo "WARNING: $1 option is ignored" >&2
+            shift 2
+            ;;
+        -d|--dir)
+            echo "WARNING: $1 option is ignored" >&2
+            shift
+            ;;
+        -b|--nobdii)
+            echo "WARNING: $1 option is ignored" >&2
+            shift
+            ;;
+        -l|--nolfc)
+            echo "WARNING: $1 option is ignored" >&2
+            shift
+            ;;
+        -v|--verbose)
+            GFAL_OPTIONS="$GFAL_OPTIONS -v"
+            shift
+            ;;
+        --version)
+            ${GFAL_RM} --version
+            exit 0
+            ;;
+        -f|--file)
+            FILE="$2"
+            shift 2
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            echo "ERROR: unknown option: $1" >&2
+            exit 1
+            ;;
+    esac
+done
+
+if [ "$TOTAL_TIMEOUTS" -gt 0 ]
+then
+    GFAL_OPTIONS="$GFAL_OPTIONS -t $TOTAL_TIMEOUTS"
+fi
+
+if [ -n "$FILE" ]
+then
+    FILES=$(tr '\n' ' ' < $FILE)
+else
+    FILES=""
+fi
+
+if [ $# -gt 0 ]
+then
+    FILES="$FILES $*"
+fi
+
+if [ -z "$FILES" ]
+then
+    echo "At least one file must be given, with -f or on the command line." >&2
+    exit 1
+fi
+
+COMMAND="env -i \
+    LCG_GFAL_INFOSYS=${LCG_GFAL_INFOSYS} \
+    X509_USER_PROXY=${X509_USER_PROXY} \
+    $PYTHON $GFAL_RM $GFAL_OPTIONS $FILES"
+
+run_command() {
+    COMMAND=$1
+    INPUT_ARGS=$2
+    echo "----------------------------------------------------------"
+    echo "`date` $0 -> gfal-rm"
+    echo "--"
+    echo "$INPUT_ARGS"
+    echo "=>"
+    echo "$COMMAND"
+    echo "--"
+    eval "$COMMAND"
+}
+
+if [ -w $LOG_FILE ]
+then
+    run_command "$COMMAND" "$INPUT_ARGS" >> $LOG_FILE 2>&1
+    ret=$?
+else
+    run_command "$COMMAND" "$INPUT_ARGS"
+    ret=$?
+fi
+
+if [ "$FORCE" = "true" ]
+then
+    ret=0
+fi
+
+exit $ret
