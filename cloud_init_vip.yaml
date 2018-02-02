@@ -1082,10 +1082,12 @@ runcmd:
   - mv conf/.moteur2/moteur2.conf ${MOTEUR_DEST_DIR}/.moteur2
   - mv conf/prod /var/www/prod
 
+  # gfal and lcg to gfal scripts
+  - yum -y -q install gfal2-util
   - mkdir ${MOTEUR_DEST_DIR}/bin
   - mv lcg-gfal/* ${MOTEUR_DEST_DIR}/bin
   - /root/sbin/update-conf.sh /root/global_configuration.txt ${MOTEUR_DEST_DIR}/bin/lcg-cr
-  # The log file must exist.
+  # The log file must exist, so that it can receive correct selinux rights.
   - export GFAL_LOGS=${MOTEUR_DEST_DIR}/gfal.log
   - touch ${GFAL_LOGS}
   - chmod 0644 ${GFAL_LOGS}
