@@ -15,17 +15,6 @@
 # Complete command:
 # openstack --insecure server create --key-name cloudkey --image CentOS-7-x86_64-GenericCloud-1608 --flavor m1.small --nic net-id=d487a5d6-7ae3-4a77-a735-c62662da3660 --user-data ~/datas/vip/cloud_init_vip.yaml vip-test
 
-# !!!!!!!!!!!!!!!!!!!!
-# Mis en commentaires pour tests :
-#
-# Vers le debut de runcmd :
-#  - yum -y update
-#  - yum -y upgrade
-#
-# => Generation d'un certificat auto-signe.  A remplacer par un bon
-#    certificat.  Il est utilise par httpd.
-# !!!!!!!!!!!!!!!!!!!!
-
 
 
 # Add EPEL repo
@@ -856,10 +845,10 @@ runcmd:
   - for s in haveged fail2ban; do systemctl start $s.service; done
 
   ###############################
-  # Update OS, don't do it during the tests.
-#  - echo "-------------- yum update and upgrade --------------"
-#  - yum -y update
-#  - yum -y upgrade
+  # Update OS
+  - echo "-------------- yum update and upgrade --------------"
+  - yum -y update
+  - yum -y upgrade
 
   ###############################
   # Get some other useful packages, before installing the rest.
@@ -965,7 +954,8 @@ runcmd:
   - yum -y -q install ca-policy-egi-core emi-ui openldap-clients glite-lb-client-progs perl-dpm perl-lfc dpm-devel lfc-devel voms*
 
   ###############################
-  # LCG software bundle
+  # LCG software bundle.  This is a least used by grida.  moteur may
+  # also use it, depending on how it is configured.
   - echo "-------------- LCG software bundle --------------"
   - mkdir -p /usr/share/lcgBundles
   - curl -sS http://lhcbproject.web.cern.ch/lhcbproject/dist/Dirac_project/lcgBundles/DIRAC-lcg-1970-01-01-Linux_x86_64_glibc-2.12-python26.tar.gz | tar -C /usr/share/lcgBundles -zxf -
@@ -1073,8 +1063,8 @@ runcmd:
   - wget -q https://github.com/virtual-imaging-platform/Complementary-tools/archive/master.zip -O Complementary-tools.zip
   - unzip -q Complementary-tools.zip
   - rm Complementary-tools.zip
-  # The '*' is for the name of the branch.  master, or something other
-  # when testing.
+  # The '*' is for the name of the branch.  This is usefull so that
+  # this command works in production as well as in test environment.
   - cd Complementary-tools-*
 
   - cp -r conf/.moteur2 /var/www
