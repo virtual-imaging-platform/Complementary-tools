@@ -1088,7 +1088,7 @@ runcmd:
   # File for selinux configuration, use later.
   - cp vip.te /root
 
-  # Leave directory /home/bin/vincent before removing it.
+  # Leave directory before removing it.
   - cd /root
   - rm -rf /home/vip/Complementary-tools-*
 
