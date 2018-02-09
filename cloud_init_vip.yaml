@@ -553,8 +553,6 @@ write_files:
       #!/bin/sh
       FILE=`set -- /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.*.x86_64/jre/lib/security/java.security; echo $1`
       echo "security.provider.10=org.bouncycastle.jce.provider.BouncyCastleProvider" >> ${FILE}
-      FILE=`set -- /usr/lib/jvm/java-1.7.0-openjdk-1.7.0.*.x86_64/jre/lib/security/java.security; echo $1`
-      echo "security.provider.10=org.bouncycastle.jce.provider.BouncyCastleProvider" >> ${FILE}
       unset FILE
     permissions: '0744'
 
@@ -870,7 +868,6 @@ runcmd:
   # Java => avant apache, h2, ...
   - echo "-------------- java --------------"
   - yum -y -q install java-1.8.0-openjdk
-  - yum -y -q install java-1.7.0-openjdk
 
   ###############################
   # Create auto-signed certificate => to be replaced by correct
