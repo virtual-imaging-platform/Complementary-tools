@@ -562,6 +562,7 @@ write_files:
       source /root/global_configuration.txt
       TMP_FILE=/tmp/update_env-$$.txt
       cat > ${TMP_FILE} <<EOF
+      s#export JAVA_HOME=/usr/lib/jvm/jre-1.7.0-openjdk.x86_64#export JAVA_HOME=/usr/lib/jvm/jre-1.8.0-openjdk#
       s/export LFC_HOST=.*/export LFC_HOST=${LFC_HOST}/
       s/export LCG_GFAL_INFOSYS=.*/export LCG_GFAL_INFOSYS=${LCG_GFAL_INFOSYS_HOST}:${LCG_GFAL_INFOSYS_PORT}/
       s#export ROBOT_PROXY=.*#export ROBOT_PROXY=/var/www/html/workflows/dirac-robot-${VO_NAME}#
