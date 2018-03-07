@@ -995,7 +995,7 @@ runcmd:
   # has evolved, and the one used is no more accessible.  Go to
   # http://mirror.ibcp.fr/pub/apache/tomcat/tomcat-8, check what
   # version is available, and update it in the line below.
-  - TOMCAT_VERSION="8.5.27"
+  - TOMCAT_VERSION="8.5.28"
   - curl -sS http://mirror.ibcp.fr/pub/apache/tomcat/tomcat-8/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz | tar -C /home/vip -zxf -
   - wget -q https://github.com/virtual-imaging-platform/VIP-portal/releases/download/1.21/vip-portal-1.21.war -O /home/vip/apache-tomcat-${TOMCAT_VERSION}/webapps/vip-portal.war
   - chown -R vip:vip /home/vip/apache-tomcat-${TOMCAT_VERSION}
