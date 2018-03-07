@@ -1205,4 +1205,4 @@ runcmd:
   - semodule_package -o vip.pp -m vip.mod
   - semodule -i vip.pp
 
-#  - setenforce Enforcing
+  - setenforce Enforcing
