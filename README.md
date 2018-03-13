@@ -22,9 +22,11 @@ This file must be regularly updated so that the proxy never expires.
 It is used throu cron files to creates the proxies used by vip, moteur
 and dirac.
 
-#### Myproxy certificates ???
+#### Myproxy certificates (deprecated)
 
-myproxy is no more used.  This part is probably useless.
+myproxy is no more used, as all proxy files are updated with the
+script `update_proxy_for_vip_moteur_dirac.sh`.  This part is
+deprecated.
 
 Upload the files:
 ```shell
@@ -76,6 +78,11 @@ proxies, but this time without the `--no-dirac` option, to update also
 the dirac proxy.
 ```shell
 /root/sbin/update_proxy_for_vip_moteur_dirac.sh >> /root/cron-update-proxy.log 2>&1
+```
+
+And finally restart tomcat.
+```shell
+systemctl restart tomcat
 ```
 
 ## Description of some files and folders
