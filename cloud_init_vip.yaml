@@ -47,8 +47,8 @@ users:
 
 # Update the variable HOSTNAME in the file global_configuration.txt,
 # just a few lines below.
-hostname: sbgvm-151-176
-fqdn: sbgvm-151-176.in2p3.fr
+hostname: sbgvm-151-50
+fqdn: sbgvm-151-50.in2p3.fr
 manage_etc_hosts: true
 
 # Write file is done BEFORE the creation of users and groups.  So we
@@ -59,7 +59,7 @@ write_files:
   # which creates the user and the databases.
   - path: /root/global_configuration.txt
     content: |
-      HOSTNAME=sbgvm-151-176.in2p3.fr
+      HOSTNAME=sbgvm-151-50.in2p3.fr
       SMTP_SERVER=sbgsmtp1.in2p3.fr
       ADMIN_FIRST_NAME=Administrator
       ADMIN_LAST_NAME=IPHC
@@ -139,7 +139,7 @@ write_files:
       #character-set-server = utf8
     permissions: '0644'
 
-  - path: /home/vip/.vip/vip.conf
+  - path: /usr/share/tomcat/.vip/vip.conf
     content: |
       # MariaDB
       database.server.host = localhost
@@ -483,23 +483,6 @@ write_files:
       </VirtualHost>
     permissions: '0644'
 
-  - path: /etc/systemd/system/tomcat.service
-    content: |
-      [Unit]
-      Description=Tomcat
-      Requires=grida.service sma.service httpd.service
-      [Service]
-      User=vip
-      Type=forking
-      PIDFile=/home/vip/apache-tomcat-<TOMCAT_VERSION>/bin/catalina.pid
-      WorkingDirectory=/home/vip/apache-tomcat-<TOMCAT_VERSION>
-      ExecStart=/home/vip/apache-tomcat-<TOMCAT_VERSION>/bin/startup.sh
-      ExecStop=/home/vip/apache-tomcat-<TOMCAT_VERSION>/bin/shutdown.sh
-      Environment=CATALINA_PID=/home/vip/apache-tomcat-<TOMCAT_VERSION>/bin/catalina.pid
-      [Install]
-      WantedBy=multi-user.target
-    permissions: '0664'
-
   - path: /home/vip/tomcat-server.xml
     content: |
       <GlobalNamingResources>
@@ -510,6 +493,7 @@ write_files:
                   password="<DB_VIP_PASSWORD>"
                   driverClassName="com.mysql.jdbc.Driver"
                   url="jdbc:mysql://localhost:3306/vip"
+                  factory="org.apache.commons.dbcp.BasicDataSourceFactory"
                   validationQuery="select 1"
                   testOnBorrow="true"
                   maxTotal="100"
@@ -653,17 +637,17 @@ write_files:
       /usr/sbin/restorecon $DEST_FILE
 
       echo "Set vip proxy file"
-      VIP_PROXY_FILE=/home/vip/.vip/proxies/x509up_server
+      VIP_PROXY_FILE=/usr/share/tomcat/.vip/proxies/x509up_server
       cp ${ORIG_FILE} ${VIP_PROXY_FILE}
       chmod 600 ${VIP_PROXY_FILE}
-      chown vip:vip ${VIP_PROXY_FILE}
+      chown tomcat:tomcat ${VIP_PROXY_FILE}
       /usr/sbin/restorecon ${VIP_PROXY_FILE}
 
       echo "Set vip proxy file with voms"
-      VIP_PROXY_FILE_VOMS=/home/vip/.vip/proxies/<VO_NAME>/x509up_server
+      VIP_PROXY_FILE_VOMS=/usr/share/tomcat/.vip/proxies/<VO_NAME>/x509up_server
       cp ${DEST_FILE} ${VIP_PROXY_FILE_VOMS}
       chmod 600 ${VIP_PROXY_FILE_VOMS}
-      chown vip:vip ${VIP_PROXY_FILE_VOMS}
+      chown tomcat:tomcat ${VIP_PROXY_FILE_VOMS}
       /usr/sbin/restorecon ${VIP_PROXY_FILE_VOMS}
 
       if [ "$#" -lt 1 ] || [ "$1" != "--no-dirac" ]
@@ -991,24 +975,23 @@ runcmd:
   ###############################
   # Tomcat : needs grida, sma, httpd.
   - echo "-------------- tomcat --------------"
-  # If installation of tomcat fails, it is probably that the version
-  # has evolved, and the one used is no more accessible.  Go to
-  # http://mirror.ibcp.fr/pub/apache/tomcat/tomcat-8, check what
-  # version is available, and update it in the line below.
-  - TOMCAT_VERSION="8.5.28"
-  - curl -sS http://mirror.ibcp.fr/pub/apache/tomcat/tomcat-8/v${TOMCAT_VERSION}/bin/apache-tomcat-${TOMCAT_VERSION}.tar.gz | tar -C /home/vip -zxf -
-  - wget -q https://github.com/virtual-imaging-platform/VIP-portal/releases/download/1.21/vip-portal-1.21.war -O /home/vip/apache-tomcat-${TOMCAT_VERSION}/webapps/vip-portal.war
-  - chown -R vip:vip /home/vip/apache-tomcat-${TOMCAT_VERSION}
-  - chown vip:vip /home/vip/.vip/vip.conf # write_files cannot do it.
-  - sed -i -e "s/<TOMCAT_VERSION>/${TOMCAT_VERSION}/g" /etc/systemd/system/tomcat.service
-  - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/.vip/vip.conf
+  - yum -y -q install tomcat
+  - wget -q https://github.com/virtual-imaging-platform/VIP-portal/releases/download/1.21/vip-portal-1.21.war -O /var/lib/tomcat/webapps/vip-portal.war
+  - chown -R root:tomcat /var/lib/tomcat/webapps
+  - mkdir -p /usr/share/tomcat/.vip/proxies/${VO_NAME}
+  # The HOME of tomcat is /usr/share/tomcat.  This is where vip will
+  # search its configuration and log directory.
+  # write_files cannot do the chown.
+  - chown -R tomcat:tomcat /usr/share/tomcat/.vip
+  - /root/sbin/update-conf.sh /root/global_configuration.txt /usr/share/tomcat/.vip/vip.conf
+  - touch /usr/share/tomcat/.vip/vip.log
   - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/tomcat-server.xml
-  - awk -v r="`cat /home/vip/tomcat-server.xml`" '{sub(/.*<GlobalNamingResources>.*$/, r)}1' /home/vip/apache-tomcat-${TOMCAT_VERSION}/conf/server.xml > /tmp/tomcat-server-$$.xml
-  - mv /tmp/tomcat-server-$$.xml /home/vip/apache-tomcat-${TOMCAT_VERSION}/conf/server.xml
-  - unset TOMCAT_VERSION
-  - rm /home/vip/tomcat-server.xml
+  - awk -v r="`cat /home/vip/tomcat-server.xml`" '{sub(/.*<GlobalNamingResources>.*$/, r)}1' /etc/tomcat/server.xml > /tmp/tomcat-server-$$.xml
+  - mv /tmp/tomcat-server-$$.xml /etc/tomcat/server.xml
   - systemctl enable tomcat
-  - systemctl start tomcat
+  # tomcat is started at the end of the script, when selinux security
+  # is configured.
+
   # We restart tomcat each night.  It regularly looses the connexion to
   # the database.
   - echo "30 4 * * * systemctl restart tomcat" >> /var/spool/cron/root
@@ -1131,9 +1114,7 @@ runcmd:
   ###############################
   # Make vip owner of its home directory
   - echo "-------------- vip home --------------"
-  - mkdir -p /home/vip/.vip/proxies/${VO_NAME}
   - chown -R vip:vip /home/vip
-  - systemctl restart tomcat
 
   ###############################
   # Make ADMIN_EMAIL member of the "Support" group (administrators)
@@ -1197,12 +1178,21 @@ runcmd:
   # Maybe move this directory somewhere under /var/www/cgi-bin ?
   - semanage fcontext -a -t httpd_sys_script_exec_t "/home/vip/sbin(/.*)?"
 
+  # For vip
+  - semanage fcontext -a -t tomcat_log_t /usr/share/tomcat/.vip
+  - semanage fcontext -a -t tomcat_log_t /usr/share/tomcat/.vip/vip.conf
+  - semanage fcontext -a -t tomcat_log_t /usr/share/tomcat/.vip/vip.log
+
   - /usr/sbin/restorecon -r /var/www
   - /usr/sbin/restorecon -r /home/vip
+  - /usr/sbin/restorecon -r /usr/share/tomcat/.vip
 
   - cd /root
   - checkmodule -M -m -o vip.mod vip.te
   - semodule_package -o vip.pp -m vip.mod
   - semodule -i vip.pp
+
+  # Start tomcat once selinux security is configured.
+  - systemctl start tomcat
 
   - setenforce Enforcing
