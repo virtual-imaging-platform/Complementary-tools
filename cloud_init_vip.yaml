@@ -985,6 +985,7 @@ runcmd:
   - chown -R tomcat:tomcat /usr/share/tomcat/.vip
   - /root/sbin/update-conf.sh /root/global_configuration.txt /usr/share/tomcat/.vip/vip.conf
   - touch /usr/share/tomcat/.vip/vip.log
+  - chown tomcat:tomcat /usr/share/tomcat/.vip/vip.log
   - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/tomcat-server.xml
   - awk -v r="`cat /home/vip/tomcat-server.xml`" '{sub(/.*<GlobalNamingResources>.*$/, r)}1' /etc/tomcat/server.xml > /tmp/tomcat-server-$$.xml
   - mv /tmp/tomcat-server-$$.xml /etc/tomcat/server.xml
