@@ -500,18 +500,6 @@ write_files:
                   maxIdle="50" />
     permissions: '0644'
 
-  - path: /etc/systemd/system/GASWServiceHandler.service
-    content: |
-      [Unit]
-      Description=VIP GASWServiceHandler
-      [Service]
-      User=vip
-      Type=simple
-      WorkingDirectory=/home/vip
-      Environment=PYTHONPATH=/var/www/cgi-bin/m2Server-gasw3/dirac
-      ExecStart=/bin/python /var/www/cgi-bin/m2Server-gasw3/dirac/DIRAC/WorkloadManagementSystem/Service/GASWServiceHandler.py
-    permissions: '0664'
-
   - path: /root/sbin/update-conf.sh
     content: |
       #!/bin/sh
@@ -607,6 +595,7 @@ write_files:
       s/plugin\.h2\.server\.port.*$/plugin.h2.server.port = 9092/g
       s/plugin\.h2\.user.*$/plugin.h2.user = gasw/g
       s/plugin\.h2\.password.*$/plugin.h2.password = gasw/g
+      s/minorstatus\.service\.enabled = true/minorstatus\.service\.enabled = false/g
       EOF
 
       sed -i -f ${TMP_FILE} /var/www/cgi-bin/m2Server-gasw3/conf/default.conf
@@ -792,7 +781,7 @@ write_files:
         echo -e "Enforce mode is ${prefix}${mode}${NOCOLOR}"
       }
 
-      services="fail2ban fetch-crl-cron GASWServiceHandler grida h2 haveged httpd mariadb postfix sma tomcat"
+      services="fail2ban fetch-crl-cron grida h2 haveged httpd mariadb postfix sma tomcat"
       check_services $services
 
       check_audit
@@ -1015,11 +1004,6 @@ runcmd:
   - rm -f ${DIRAC_INSTALL_DIR}/dirac-install
   # Dirac configuration needs a proxy certificate.  See instructions
   # in the README.md file.
-
-  # EDIT : install GASWServiceHandler (see GASWServiceHandler.service
-  # to see in which directory) !!!!!!!!
-  - systemctl enable GASWServiceHandler
-  - systemctl start GASWServiceHandler
 
   ###############################
   # Moteur (serveur de workflows)
