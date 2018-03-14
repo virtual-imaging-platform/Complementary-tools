@@ -766,13 +766,13 @@ write_files:
           fi
           echo -e "audit.log contains ${RED}${nbDenied} denied${NOCOLOR} (the last is: $type, `date -d @${date}`${fichier})"
         else
-          echo "audit.log : OK"
+          echo "audit.log : ${GREEN}OK${NOCOLOR}"
         fi
       }
 
       check_enforce_mode() {
         mode=`getenforce`
-        if [ "$mode" = "Permissive" ]
+        if [ "$mode" = Enforcing" ]
         then
           prefix=$GREEN
         else
