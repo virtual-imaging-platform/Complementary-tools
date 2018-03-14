@@ -766,7 +766,7 @@ write_files:
           fi
           echo -e "audit.log contains ${RED}${nbDenied} denied${NOCOLOR} (the last is: $type, `date -d @${date}`${fichier})"
         else
-          echo "audit.log : ${GREEN}OK${NOCOLOR}"
+          echo -e "audit.log : ${GREEN}OK${NOCOLOR}"
         fi
       }
 
