@@ -166,3 +166,6 @@ allow httpd_t user_home_t:lnk_file read;
 # This is due to a bug:
 # https://bugzilla.redhat.com/show_bug.cgi?id=1491747
 allow tomcat_t mysqld_port_t:tcp_socket name_connect;
+
+# Needed by moteur to use 'ps' when killing a job
+allow httpd_sys_script_t devpts_t:dir search;
