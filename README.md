@@ -22,9 +22,11 @@ This file must be regularly updated so that the proxy never expires.
 It is used throu cron files to creates the proxies used by vip, moteur
 and dirac.
 
-#### Myproxy certificates ???
+#### Myproxy certificates (deprecated)
 
-myproxy is no more used.  This part is probably useless.
+myproxy is no more used, as all proxy files are updated with the
+script `update_proxy_for_vip_moteur_dirac.sh`.  This part is
+deprecated.
 
 Upload the files:
 ```shell
@@ -77,3 +79,44 @@ the dirac proxy.
 ```shell
 /root/sbin/update_proxy_for_vip_moteur_dirac.sh >> /root/cron-update-proxy.log 2>&1
 ```
+
+And finally restart tomcat.
+```shell
+systemctl restart tomcat
+```
+
+## Description of some files and folders
+
+(Most of) all these files are downloaded by the cloud-init script
+during installation.
+
+### conf
+
+Configuration files for moteur.
+
+### dirac_services
+
+Python scripts to add to default dirac installation, to add some
+services needed by moteur.
+
+### lcg-gfal
+
+Contains shell-scripts for some lcg executables, and runs the
+equivalent gfal command, effectively transforming a lcg command into a
+gfal command.  The lcg executables delivered with dirac don't work, so
+this is a workaround.
+
+### moteur
+
+Many jars to install moteur, and some associated configuration files.
+
+### cloud_init_vip.yaml
+
+This file can be used to instantiate a VM running all the services
+needed to run a VIP server.  It must be configured at the start of the
+file to adapt to your environment (administrator, VO tu use, …).
+
+### vip.te
+
+This is the SELinux security configuration of the server installed by
+the cloud-init file.

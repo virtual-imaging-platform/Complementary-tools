@@ -52,6 +52,11 @@ require {
 	class dir { add_name getattr remove_name search write };
 	class file { append create execute execute_no_trans getattr open read unlink write };
 	class system syslog_read;
+
+        # This is due to a bug.  More info at end of this file.
+        type mysqld_port_t;
+        type tomcat_t;
+        class tcp_socket name_connect;
 }
 
 #============= httpd_sys_script_t ==============
@@ -156,3 +161,11 @@ allow httpd_t user_home_t:file execute;
 
 #!!!! This avc is allowed in the current policy
 allow httpd_t user_home_t:lnk_file read;
+
+#============= tomcat_t ==============
+# This is due to a bug:
+# https://bugzilla.redhat.com/show_bug.cgi?id=1491747
+allow tomcat_t mysqld_port_t:tcp_socket name_connect;
+
+# Needed by moteur to use 'ps' when killing a job
+allow httpd_sys_script_t devpts_t:dir search;
