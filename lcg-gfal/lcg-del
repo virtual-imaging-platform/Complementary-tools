@@ -133,7 +133,7 @@ then
     GFAL_OPTIONS="$GFAL_OPTIONS -t $TOTAL_TIMEOUTS"
 fi
 
-if [ -n "$FILE" ]
+if [ -n "${FILE:-}" ]
 then
     FILES=$(tr '\n' ' ' < $FILE)
 else
