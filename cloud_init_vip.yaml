@@ -1093,7 +1093,6 @@ runcmd:
   - chmod +x ${MOTEUR_DEST_DIR}/killWorkflow.sh ${MOTEUR_DEST_DIR}/submitWorkflow.sh
 
   # Install moteur complementary tools
-  # TODO : change complementary tools link
   - wget -q https://github.com/virtual-imaging-platform/Complementary-tools/archive/master.zip -O Complementary-tools.zip
   - unzip -q Complementary-tools.zip
   - rm Complementary-tools.zip

@@ -50,7 +50,7 @@ require {
 	type postfix_master_t;
 	class lnk_file { getattr read };
 	class chr_file { getattr open read };
-	class dir { add_name getattr remove_name search write };
+	class dir { add_name getattr remove_name search write read };
 	class file { append create execute execute_no_trans getattr open read unlink write };
 	class system syslog_read;
 
@@ -172,5 +172,7 @@ allow tomcat_t mysqld_port_t:tcp_socket name_connect;
 allow httpd_sys_script_t devpts_t:dir search;
 
 # Needed to write uploaded file in grida directory
-allow tomcat_t user_home_t:dir search;
+# and also get the downloads
+allow tomcat_t user_home_t:dir { getattr read search };
 allow tomcat_t user_home_dir_t:dir { getattr search };
+allow tomcat_t user_home_t:file {open read};
