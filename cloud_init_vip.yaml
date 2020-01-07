@@ -256,7 +256,7 @@ write_files:
 
   - path: /usr/share/tomcat/.vip/vip-api.conf
     content: |
-    cors.autorized-domains=
+      cors.autorized-domains=
       #http://brain-perfusion.creatis.insa-lyon.fr
 
       # General info stuff
@@ -481,13 +481,10 @@ write_files:
       <VirtualHost *:80>
         ServerName <HOSTNAME>
         Redirect permanent /vip-portal https://<HOSTNAME>/vip-portal
-        Redirect permanent /vip https://<HOSTNAME>/vip-portal
       </VirtualHost>
 
       <VirtualHost *:443>
         ServerName <HOSTNAME>
-
-        Redirect permanent /vip https://sbgsol.in2p3.fr/vip-portal
 
         Header always set Strict-Transport-Security "max-age=63072000;"
 
@@ -535,6 +532,14 @@ write_files:
                   testOnBorrow="true"
                   maxTotal="100"
                   maxIdle="50" />
+    permissions: '0644'
+
+  - path: /home/vip/tomcat-setenv.conf
+    content: |
+      export CATALINA_OPTS="
+      -Dlog4j.configuration=log4j.properties
+      -Xmx2048M
+      -Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=true"
     permissions: '0644'
 
   - path: /root/sbin/update-conf.sh
@@ -665,14 +670,14 @@ write_files:
       echo "Set vip proxy file"
       VIP_PROXY_FILE=/usr/share/tomcat/.vip/proxies/x509up_server
       cp ${ORIG_FILE} ${VIP_PROXY_FILE}
-      chmod 600 ${VIP_PROXY_FILE}
+      chmod 640 ${VIP_PROXY_FILE}
       chown tomcat:tomcat ${VIP_PROXY_FILE}
       /usr/sbin/restorecon ${VIP_PROXY_FILE}
 
       echo "Set vip proxy file with voms"
       VIP_PROXY_FILE_VOMS=/usr/share/tomcat/.vip/proxies/<VO_NAME>/x509up_server
       cp ${DEST_FILE} ${VIP_PROXY_FILE_VOMS}
-      chmod 600 ${VIP_PROXY_FILE_VOMS}
+      chmod 640 ${VIP_PROXY_FILE_VOMS}
       chown tomcat:tomcat ${VIP_PROXY_FILE_VOMS}
       /usr/sbin/restorecon ${VIP_PROXY_FILE_VOMS}
 
@@ -701,7 +706,7 @@ write_files:
       rm ${TMP_FILE}
     permissions: '0744'
 
-  - path: /root/sbin/update_moteur_grida_conf.sh
+  - path: /root/sbin/update_moteur2_grida_conf.sh
     content: |
       #!/bin/sh
       source /root/global_configuration.txt
@@ -711,7 +716,7 @@ write_files:
       cat > ${TMP_FILE} << EOF
       s/grida\.server\.host.*$/grida\.server\.host=${HOSTNAME}/
       s/grida\.server\.port.*$/grida\.server\.port=5006/
-      s/proxy\.path.*$/proxy\.path=${PROXY_PATH}/
+      s#proxy\.path.*\$#proxy\.path=${PROXY_PATH}#
       EOF
 
       sed -i -f ${TMP_FILE} /var/www/.moteur2/moteur2-grida.conf
@@ -768,7 +773,7 @@ write_files:
         waited=true
         sleep 5
       done
-      mysql --user=root --password=$DB_ROOT_PASSWD -e "use vip;insert into VIPUsersGroups values ('$ADMIN_EMAIL', 'Support', 'User');insert into VIPTermsOfuse (date, text) values (now(), 'the text');"
+      mysql --user=root --password=$DB_ROOT_PASSWD -e "use vip;insert into VIPUsersGroups values ('$ADMIN_EMAIL', 'Support', 'User');insert into VIPTermsOfuse (date, text) values (now(), 'the text');ALTER TABLE VIPEngines ADD COLUMN status VARCHAR(255) DEFAULT NULL;"
       if [ "$waited" = "true" ]
       then
         echo "${script_name} now done"
@@ -1033,6 +1038,7 @@ runcmd:
   - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/tomcat-server.xml
   - awk -v r="`cat /home/vip/tomcat-server.xml`" '{sub(/.*<GlobalNamingResources>.*$/, r)}1' /etc/tomcat/server.xml > /tmp/tomcat-server-$$.xml
   - mv /tmp/tomcat-server-$$.xml /etc/tomcat/server.xml
+  - mv /home/vip/tomcat-setenv.conf /usr/share/tomcat/bin/setenv.conf
   - systemctl enable tomcat
   # tomcat is started at the end of the script, when selinux security
   # is configured.
@@ -1040,6 +1046,12 @@ runcmd:
   # We restart tomcat each night.  It regularly looses the connexion to
   # the database.
   - echo "30 4 * * * systemctl restart tomcat" >> /var/spool/cron/root
+
+  # add vip to the tomcat group so grida can access the vip proxies
+  - usermod -a -G tomcat vip
+  # add grida upload directory so that vip/tomcat can write in it
+  - mkdir /home/vip/grida/uploads
+  - chown tomcat:tomcat /home/vip/grida/uploads
 
   ###############################
   # Install docker, which may be used by moteur to run local applications.
@@ -1081,6 +1093,7 @@ runcmd:
   - chmod +x ${MOTEUR_DEST_DIR}/killWorkflow.sh ${MOTEUR_DEST_DIR}/submitWorkflow.sh
 
   # Install moteur complementary tools
+  # TODO : change complementary tools link
   - wget -q https://github.com/virtual-imaging-platform/Complementary-tools/archive/master.zip -O Complementary-tools.zip
   - unzip -q Complementary-tools.zip
   - rm Complementary-tools.zip
@@ -1123,10 +1136,10 @@ runcmd:
   # Update /var/www/.moteur2/moteur2-grida.conf
   - /root/sbin/update_moteur2_grida_conf.sh
 
-  # Should not be needed after next version of moteur2 VIP plugin
-  # https://github.com/virtual-imaging-platform/Moteur2-WorkflowsDB-Common/pull/1
-  - mkdir -p /home/vip/.moteur2
-  - cp /var/www/prod/.moteur2/moteur2plugins.conf /home/vip/.moteur2/moteur2plugins.conf
+  # Copy moteur2plugins conf for tomcat/vip
+  - mkdir -p /usr/share/tomcat/.moteur2
+  - cp /var/www/prod/.moteur2/moteur2plugins.conf /usr/share/tomcat/.moteur2/moteur2plugins.conf
+  - chown -R tomcat:tomcat /usr/share/tomcat/.moteur2
 
   # After it has been updated.
   - cp ${MOTEUR_DEST_DIR}/.moteur2/moteur2.conf /var/www/.moteur2
@@ -1215,9 +1228,13 @@ runcmd:
   - semanage fcontext -a -t tomcat_log_t /usr/share/tomcat/.vip/vip.conf
   - semanage fcontext -a -t tomcat_log_t /usr/share/tomcat/.vip/vip.log
 
+  # for grida
+  - semanage fcontext -a -t tomcat_log_t /home/vip/grida/uploads
+
   - /usr/sbin/restorecon -r /var/www
   - /usr/sbin/restorecon -r /home/vip
   - /usr/sbin/restorecon -r /usr/share/tomcat/.vip
+  - /usr/sbin/restorecon -r /usr/share/tomcat/.moteur2
 
   - cd /root
   - checkmodule -M -m -o vip.mod vip.te
