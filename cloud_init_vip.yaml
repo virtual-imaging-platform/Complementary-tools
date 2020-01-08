@@ -435,6 +435,50 @@ write_files:
       dirac.bashrc = /var/www/cgi-bin/m2Server-gasw3/dirac/bashrc
     permissions: '0644'
 
+  - path: /etc/systemd/system/grida_apache.service
+    content: |
+      [Unit]
+      Description=Grida server for apache
+      After=network.target
+      [Service]
+      User=apache
+      Type=simple
+      WorkingDirectory=/var/www/prod/grida
+      # Needed for: /usr/bin/which, lcg-cp & lcg-cr
+      Environment=JAVA_HOME=/etc/alternatives/jre_1.8.0
+      ExecStart=/etc/alternatives/jre_1.8.0/bin/java -jar /var/www/prod/grida/grida-server-2.0.1.jar
+      [Install]
+      WantedBy=multi-user.target
+    permissions: '0664'
+
+  - path: /home/vip/grida/grida-apache-server.conf
+    content: |
+      agent.port = 5007
+      agent.retrycount = 5
+      agent.min.available.diskspace = 0.02
+
+      lfc.host = <LFC_HOST>
+      lfc.preferredSEsList = <SE_LIST>
+
+      vo = <VO_NAME>
+
+      bdii.host = <LCG_GFAL_INFOSYS_HOST>
+      bdii.port = <LCG_GFAL_INFOSYS_PORT>
+
+      cache.list.max.entries = 30
+      cache.list.max.hours = 12
+      cache.files.max.size = 100.0
+      cache.files.path = /var/www/prod/grida/cache
+
+      pool.max.download = 10
+      pool.max.upload = 10
+      pool.max.delete = 5
+      pool.max.replication = 5
+      pool.max.history = 15
+      commands.type = dirac
+      dirac.bashrc = /var/www/cgi-bin/m2Server-gasw3/dirac/bashrc
+    permissions: '0644'
+
   - path: /etc/systemd/system/sma.service
     content: |
       [Unit]
@@ -540,6 +584,7 @@ write_files:
       -Dlog4j.configuration=log4j.properties
       -Xmx2048M
       -Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=true"
+      umask 002
     permissions: '0644'
 
   - path: /root/sbin/update-conf.sh
@@ -710,12 +755,13 @@ write_files:
     content: |
       #!/bin/sh
       source /root/global_configuration.txt
-      PROXY_PATH=/usr/share/tomcat/.vip/proxies/${VO_NAME}/x509up_server
+      PROXY_PATH=/var/www/html/workflows/dirac-robot-${VO_NAME}
+      GRIDA_PORT=5007
       TMP_FILE=/tmp/update_moteur2_grida_conf-$$.txt
       # \ is needed before $#, otherwise the is shell replacement.
       cat > ${TMP_FILE} << EOF
       s/grida\.server\.host.*$/grida\.server\.host=${HOSTNAME}/
-      s/grida\.server\.port.*$/grida\.server\.port=5006/
+      s/grida\.server\.port.*$/grida\.server\.port=${GRIDA_PORT}/
       s#proxy\.path.*\$#proxy\.path=${PROXY_PATH}#
       EOF
 
@@ -773,7 +819,10 @@ write_files:
         waited=true
         sleep 5
       done
-      mysql --user=root --password=$DB_ROOT_PASSWD -e "use vip;insert into VIPUsersGroups values ('$ADMIN_EMAIL', 'Support', 'User');insert into VIPTermsOfuse (date, text) values (now(), 'the text');ALTER TABLE VIPEngines ADD COLUMN status VARCHAR(255) DEFAULT NULL;"
+      mysql --user=root --password=$DB_ROOT_PASSWD -e "use vip;insert into VIPUsersGroups values ('$ADMIN_EMAIL', 'Support', 'User');insert into VIPTermsOfuse (date, text) values (now(), 'the text');"
+      mysql --user=root --password=$DB_ROOT_PASSWD -e "use vip;ALTER TABLE VIPEngines ADD COLUMN status VARCHAR(255) DEFAULT NULL;"
+      mysql --user=root --password=$DB_ROOT_PASSWD -e "use vip;ALTER TABLE VIPApplications ADD COLUMN lfn varchar(255) DEFAULT NULL;"
+      mysql --user=root --password=$DB_ROOT_PASSWD -e "use vip;INSERT INTO VIPEngines (name, endpoint, status) VALUES ('local','${HOSTNAME}','enabled');""
       if [ "$waited" = "true" ]
       then
         echo "${script_name} now done"
@@ -1015,7 +1064,6 @@ runcmd:
   - echo "-------------- grida --------------"
   - mkdir -p /home/vip/grida/cache
   - wget -q https://github.com/virtual-imaging-platform/GRIDA/releases/download/2.0.1/grida-server-2.0.1.jar -O /home/vip/grida/grida-server-2.0.1.jar
-  - /root/sbin/update-conf.sh /root/global_configuration.txt /etc/systemd/system/grida.service
   - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/grida/grida-server.conf
   - systemctl enable grida.service
   - systemctl start grida.service
@@ -1052,6 +1100,15 @@ runcmd:
   # add grida upload directory so that vip/tomcat can write in it
   - mkdir /home/vip/grida/uploads
   - chown tomcat:tomcat /home/vip/grida/uploads
+
+  # Needed by grida to put the gwendia files when launching an execution
+  - mkdir /usr/share/tomcat/.vip/workflows
+  - chown vip:vip /usr/share/tomcat/.vip/workflows
+
+  # tomcat needs boutiques
+  - yum -y install python-pip
+  - pip install --upgrade pip
+  - pip install boutiques==0.5.22.post2
 
   ###############################
   # Install docker, which may be used by moteur to run local applications.
@@ -1145,11 +1202,32 @@ runcmd:
 
   - unset MOTEUR_DEST_DIR
 
+  ###############################
+  # GRIDA for moteur, under user apache
+  - echo "-------------- grida moteur --------------"
+  - mkdir -p /var/www/prod/grida/cache
+  - cp /home/vip/grida/grida-server-2.0.1.jar /var/www/prod/grida
+  - mv /home/vip/grida/grida-apache-server.conf  /var/www/prod/grida/grida-server.conf
+  - /root/sbin/update-conf.sh /root/global_configuration.txt /var/www/prod/grida/grida-server.conf
+
+  - mkdir /usr/share/httpd/.dirac
+  - chown apache:apache /usr/share/httpd/.dirac
+  - mkdir /usr/share/httpd/.cache # necessary for boutiques
+  - chown apache:apache /usr/share/httpd/.cache
+
+  - systemctl enable grida_apache.service
+  - systemctl start grida_apache.service
+
   - mkdir -p /var/www/html/workflows
   - chown -R apache:apache /var/www
 
   - /root/sbin/update-conf.sh /root/global_configuration.txt /root/sbin/update_proxy_for_vip_moteur_dirac.sh
   - echo "0 */6 * * * /root/sbin/update_proxy_for_vip_moteur_dirac.sh >> /root/cron-update-proxy.log 2>&1" >> /var/spool/cron/root
+
+  ###############################
+  # GRIDA for moteur, under user apache
+  - echo "-------- Install necessary moteur package with yum  --------------"
+  - yum -y -q install time boost-python
 
   ###############################
   - echo "-------------- Installing voms --------------"
@@ -1243,4 +1321,6 @@ runcmd:
   # Start tomcat once selinux security is configured.
   - systemctl start tomcat
 
-  - setenforce Enforcing
+  # SELinux Enforcing OK to run basic VIP, but too many things to tweak
+  # to import applications and run moteur
+  #- setenforce Enforcing
