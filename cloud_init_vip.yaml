@@ -1072,7 +1072,7 @@ runcmd:
   # Tomcat : needs grida, sma, httpd.
   - echo "-------------- tomcat --------------"
   - yum -y -q install tomcat
-  - wget -q https://github.com/virtual-imaging-platform/VIP-portal/releases/download/1.25/vip-portal-1.25.war -O /var/lib/tomcat/webapps/vip-portal.war
+  - wget -q https://github.com/virtual-imaging-platform/VIP-portal/releases/download/1.27/vip-portal-1.27.war -O /var/lib/tomcat/webapps/vip-portal.war
   - chown -R root:tomcat /var/lib/tomcat/webapps
   - mkdir -p /usr/share/tomcat/.vip/proxies/${VO_NAME}
   # The HOME of tomcat is /usr/share/tomcat.  This is where vip will
