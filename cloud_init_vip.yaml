@@ -1066,7 +1066,6 @@ runcmd:
   - wget -q https://github.com/virtual-imaging-platform/GRIDA/releases/download/2.0.1/grida-server-2.0.1.jar -O /home/vip/grida/grida-server-2.0.1.jar
   - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/grida/grida-server.conf
   - systemctl enable grida.service
-  - systemctl start grida.service
 
   ###############################
   # Tomcat : needs grida, sma, httpd.
@@ -1237,8 +1236,6 @@ runcmd:
   # Make vip owner of its home directory
   - echo "-------------- vip home --------------"
   - chown -R vip:vip /home/vip
-  # start grida now as it needs moteur installed and the chown on /home/vip done
-  - systemctl start grida.service
 
   ###############################
   # Make ADMIN_EMAIL member of the "Support" group (administrators)
@@ -1263,7 +1260,7 @@ runcmd:
   - systemctl restart postfix
 
   ###############################
-  # Try again to start grida, it gives a NPE the first time.
+  # start grida now as it needs moteur installed and the chown on /home/vip done
   - echo "-------------- restart grida --------------"
   - systemctl start grida
 
