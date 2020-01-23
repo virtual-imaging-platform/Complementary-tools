@@ -61,6 +61,8 @@ write_files:
     content: |
       HOSTNAME=sbgvm-151-50.in2p3.fr
       SMTP_SERVER=sbgsmtp1.in2p3.fr
+      PLATFORM_NAME=MODIFY
+      PLATFORM_DESCRIPTION=MODIFY
       ADMIN_FIRST_NAME=Administrator
       ADMIN_LAST_NAME=IPHC
       ADMIN_EMAIL=MODIFY
@@ -72,8 +74,8 @@ write_files:
       LFC_PORT=5010
       LCG_GFAL_INFOSYS_HOST=cclcgtopbdii02.in2p3.fr
       LCG_GFAL_INFOSYS_PORT=2170
-      LFC_VIP_ROOT_DIR=MODIFY
-      SE_LIST=sbgse1.in2p3.fr
+      DFC_VIP_ROOT_DIR=MODIFY
+      SE_LIST=MODIFY
       DB_ROOT_PASSWD="4fa59a1d7adc7e448328f7b6f9a08366"
       DB_VIP_USERNAME=vip
       DB_VIP_PASSWORD=MODIFY
@@ -178,8 +180,8 @@ write_files:
 
       # This is also for grida
       # LFC pathes
-      datamanager.users.home = <LFC_VIP_ROOT_DIR>/users
-      datamanager.groups.home = <LFC_VIP_ROOT_DIR>/groups
+      datamanager.users.home = <DFC_VIP_ROOT_DIR>/users
+      datamanager.groups.home = <DFC_VIP_ROOT_DIR>/groups
       # Local (on VIP server) path
       datamanager.path = /home/vip/grida
       datamanager.lfc.host = <LFC_HOST>
@@ -245,7 +247,49 @@ write_files:
       boutiques.upload.repository = /tmp/boutiques-cache
       boutiques.upload.deleteFile = yes
 
-      ssh.publickey = ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAuNjIXlgjuBR+WfjGtkieecZfe/ZL6EyNJTbL14bn3/Soof0kFSshDJvFgSH1hNwMMU1hynLbzcEbLTyVMoGQKfQkq7mJPajy9g8878WCKxCRbXv3W1/HT9iab/qqt2dcRYnDEruHwgyELBhQuMAe2W2/mgjd7Y5PxE01bwDcenYl3cU3iJk1sAOHao6P+3xU6Ov+TD8K9aC0LzZpM+rzAmS9HOZ9nvzERExd7k4TUpyffQV9Dpb5jEnEViF3VHqplB8AbWDdcJbiVkUBUe4hQb7nmWP0kHl1+v5SQJ1B4mWCZ+35Rc/9b1GsmPnXg3qqhjeKbrim/NbcUwKr9NPWjQ== vip-services@kingkong.grid.creatis.insa-lyon.fr
+      api.conf-file.location = vip-api.conf
+
+      publication.system-command = bosh publish --sandbox --no-int $FILE
+
+      ssh.publickey = public key to add in vip.conf
+    permissions: '0644'
+
+  - path: /usr/share/tomcat/.vip/vip-api.conf
+    content: |
+      cors.autorized-domains=
+      #http://brain-perfusion.creatis.insa-lyon.fr
+
+      # General info stuff
+      carmin.platform.name=<PLATFORM_NAME>
+      carmin.platform.description=<PLATFORM_DESCRIPTION>
+      carmin.platform.supported_transfer_protocols=HTTPS
+      carmin.platform.supported_modules=PROCESSING
+      carmin.platform.default_limit_list_execution=500
+      carmin.platform.unsupported_methods=
+      carmin.platform.supported_API_Version=0.3
+      carmin.platform.email=<ADMIN_EMAIL>
+      carmin.platform.error_codes_and_message=\
+        40001:An error has been encountered on the API,\
+        40002:Unfortunately this method is not implemented,\
+        40101:Bad credentials,\
+        40102:Insufficient authntication,\
+        40103:Authentication Error,\
+        50001:An unexpected error has been encountered
+
+      # Authentication stuff
+      carmin.authentication.apikey.header.name=apikey
+      carmin.authentication.apikey.generate_new_key_on_each_authentication=false
+
+      # DATA stuff
+      carmin.data.path.download=/path
+      carmin.data.mime_type.directory=text/directory
+      carmin.data.mime_type.default=application/octet-stream
+      carmin.data.download.retry=2
+      carmin.data.download.timeout=45
+      carmin.data.max_size=300000000
+
+      # Pipeline stuff
+      carmin.processing.pipelines.whitelist=
     permissions: '0644'
 
   - path: /home/vip/.vip/vip.sql
@@ -361,13 +405,8 @@ write_files:
       Type=simple
       WorkingDirectory=/home/vip/grida
       # Needed for: /usr/bin/which, lcg-cp & lcg-cr
-      Environment=PATH=$PATH:/bin:/usr/bin:/usr/share/lcgBundles/Linux_x86_64_glibc-2.12/bin
-      Environment=LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/share/lcgBundles/Linux_x86_64_glibc-2.12/lib
       Environment=JAVA_HOME=/etc/alternatives/jre_1.8.0
-      ExecStart=/etc/alternatives/jre_1.8.0/bin/java -jar /home/vip/grida/grida-server-1.4.1.jar
-      Environment=LFC_HOST=<LFC_HOST>
-      Environment=LCG_GFAL_INFOSYS=<LCG_GFAL_INFOSYS_HOST>:<LCG_GFAL_INFOSYS_PORT>
-      Environment=LCG_GFAL_VO=<VO_NAME>
+      ExecStart=/etc/alternatives/jre_1.8.0/bin/java -jar /home/vip/grida/grida-server-2.0.1.jar
       [Install]
       WantedBy=multi-user.target
     permissions: '0664'
@@ -379,7 +418,7 @@ write_files:
       agent.min.available.diskspace = 0.02
 
       lfc.host = <LFC_HOST>
-      lfc.preferredSEsList = <SE_LIST>
+      preferredSEsList = <SE_LIST>
 
       vo = <VO_NAME>
 
@@ -396,6 +435,52 @@ write_files:
       pool.max.delete = 5
       pool.max.replication = 5
       pool.max.history = 15
+      commands.type = dirac
+      dirac.bashrc = /var/www/cgi-bin/m2Server-gasw3/dirac/bashrc
+    permissions: '0644'
+
+  - path: /etc/systemd/system/grida_apache.service
+    content: |
+      [Unit]
+      Description=Grida server for apache
+      After=network.target
+      [Service]
+      User=apache
+      Type=simple
+      WorkingDirectory=/var/www/prod/grida
+      # Needed for: /usr/bin/which, lcg-cp & lcg-cr
+      Environment=JAVA_HOME=/etc/alternatives/jre_1.8.0
+      ExecStart=/etc/alternatives/jre_1.8.0/bin/java -jar /var/www/prod/grida/grida-server-2.0.1.jar
+      [Install]
+      WantedBy=multi-user.target
+    permissions: '0664'
+
+  - path: /home/vip/grida/grida-apache-server.conf
+    content: |
+      agent.port = 5007
+      agent.retrycount = 5
+      agent.min.available.diskspace = 0.02
+
+      lfc.host = <LFC_HOST>
+      preferredSEsList = <SE_LIST>
+
+      vo = <VO_NAME>
+
+      bdii.host = <LCG_GFAL_INFOSYS_HOST>
+      bdii.port = <LCG_GFAL_INFOSYS_PORT>
+
+      cache.list.max.entries = 30
+      cache.list.max.hours = 12
+      cache.files.max.size = 100.0
+      cache.files.path = /var/www/prod/grida/cache
+
+      pool.max.download = 10
+      pool.max.upload = 10
+      pool.max.delete = 5
+      pool.max.replication = 5
+      pool.max.history = 15
+      commands.type = dirac
+      dirac.bashrc = /var/www/cgi-bin/m2Server-gasw3/dirac/bashrc
     permissions: '0644'
 
   - path: /etc/systemd/system/sma.service
@@ -444,13 +529,10 @@ write_files:
       <VirtualHost *:80>
         ServerName <HOSTNAME>
         Redirect permanent /vip-portal https://<HOSTNAME>/vip-portal
-        Redirect permanent /vip https://<HOSTNAME>/vip-portal
       </VirtualHost>
 
       <VirtualHost *:443>
         ServerName <HOSTNAME>
-
-        Redirect permanent /vip https://sbgsol.in2p3.fr/vip-portal
 
         Header always set Strict-Transport-Security "max-age=63072000;"
 
@@ -498,6 +580,15 @@ write_files:
                   testOnBorrow="true"
                   maxTotal="100"
                   maxIdle="50" />
+    permissions: '0644'
+
+  - path: /home/vip/tomcat-setenv.conf
+    content: |
+      export CATALINA_OPTS="
+      -Dlog4j.configuration=log4j.properties
+      -Xmx2048M
+      -Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=true"
+      umask 002
     permissions: '0644'
 
   - path: /root/sbin/update-conf.sh
@@ -582,7 +673,6 @@ write_files:
       source /root/global_configuration.txt
       TMP_FILE=/tmp/update_moteur_default_conf-$$.txt
       cat > ${TMP_FILE} << EOF
-      s#LFC_HOME=[^ ]*#LFC_HOME=${LFC_HOST}${LFC_VIP_ROOT_DIR}#g
       s/LFC_HOST=[^ ]*/LFC_HOST=${LFC_HOST}/g
       s/LCG_GFAL_VO=[^ ]*/LCG_GFAL_VO=${VO_NAME}/g
       s/vo\.default\.se.*$/vo.default.se=${SE_LIST}/g
@@ -628,14 +718,14 @@ write_files:
       echo "Set vip proxy file"
       VIP_PROXY_FILE=/usr/share/tomcat/.vip/proxies/x509up_server
       cp ${ORIG_FILE} ${VIP_PROXY_FILE}
-      chmod 600 ${VIP_PROXY_FILE}
+      chmod 640 ${VIP_PROXY_FILE}
       chown tomcat:tomcat ${VIP_PROXY_FILE}
       /usr/sbin/restorecon ${VIP_PROXY_FILE}
 
       echo "Set vip proxy file with voms"
       VIP_PROXY_FILE_VOMS=/usr/share/tomcat/.vip/proxies/<VO_NAME>/x509up_server
       cp ${DEST_FILE} ${VIP_PROXY_FILE_VOMS}
-      chmod 600 ${VIP_PROXY_FILE_VOMS}
+      chmod 640 ${VIP_PROXY_FILE_VOMS}
       chown tomcat:tomcat ${VIP_PROXY_FILE_VOMS}
       /usr/sbin/restorecon ${VIP_PROXY_FILE_VOMS}
 
@@ -661,6 +751,24 @@ write_files:
 
       sed -i -f ${TMP_FILE} /var/www/.moteur2/moteur2plugins.conf
       sed -i -f ${TMP_FILE} /var/www/prod/.moteur2/moteur2plugins.conf
+      rm ${TMP_FILE}
+    permissions: '0744'
+
+  - path: /root/sbin/update_moteur2_grida_conf.sh
+    content: |
+      #!/bin/sh
+      source /root/global_configuration.txt
+      PROXY_PATH=/var/www/html/workflows/dirac-robot-${VO_NAME}
+      GRIDA_PORT=5007
+      TMP_FILE=/tmp/update_moteur2_grida_conf-$$.txt
+      # \ is needed before $#, otherwise the is shell replacement.
+      cat > ${TMP_FILE} << EOF
+      s/grida\.server\.host.*$/grida\.server\.host=${HOSTNAME}/
+      s/grida\.server\.port.*$/grida\.server\.port=${GRIDA_PORT}/
+      s#proxy\.path.*\$#proxy\.path=${PROXY_PATH}#
+      EOF
+
+      sed -i -f ${TMP_FILE} /var/www/.moteur2/moteur2-grida.conf
       rm ${TMP_FILE}
     permissions: '0744'
 
@@ -772,7 +880,7 @@ write_files:
 
       check_enforce_mode() {
         mode=`getenforce`
-        if [ "$mode" = Enforcing" ]
+        if [ "$mode" = "Enforcing" ]
         then
           prefix=$GREEN
         else
@@ -781,7 +889,7 @@ write_files:
         echo -e "Enforce mode is ${prefix}${mode}${NOCOLOR}"
       }
 
-      services="fail2ban fetch-crl-cron grida h2 haveged httpd mariadb postfix sma tomcat"
+      services="fail2ban fetch-crl-cron grida grida_apache h2 haveged httpd mariadb postfix sma tomcat"
       check_services $services
 
       check_audit
@@ -927,10 +1035,10 @@ runcmd:
   ###############################
   # LCG software bundle.  This is a least used by grida.  moteur may
   # also use it, depending on how it is configured.
-  - echo "-------------- LCG software bundle --------------"
-  - mkdir -p /usr/share/lcgBundles
-  - curl -sS http://lhcbproject.web.cern.ch/lhcbproject/dist/Dirac_project/lcgBundles/DIRAC-lcg-1970-01-01-Linux_x86_64_glibc-2.12-python26.tar.gz | tar -C /usr/share/lcgBundles -zxf -
-  - chown -R root:root /usr/share/lcgBundles
+  #- echo "-------------- LCG software bundle --------------"
+  #- mkdir -p /usr/share/lcgBundles
+  #- curl -sS http://lhcbproject.web.cern.ch/lhcbproject/dist/Dirac_project/lcgBundles/DIRAC-lcg-1970-01-01-Linux_x86_64_glibc-2.12-python26.tar.gz | tar -C /usr/share/lcgBundles -zxf -
+  #- chown -R root:root /usr/share/lcgBundles
 
   ###############################
   # SMA (un simple .jar java8)
@@ -955,17 +1063,15 @@ runcmd:
   # GRIDA (un simple .jar java8)
   - echo "-------------- grida --------------"
   - mkdir -p /home/vip/grida/cache
-  - wget -q https://github.com/virtual-imaging-platform/GRIDA/releases/download/1.4.1/grida-server-1.4.1.jar -O /home/vip/grida/grida-server-1.4.1.jar
-  - /root/sbin/update-conf.sh /root/global_configuration.txt /etc/systemd/system/grida.service
+  - wget -q https://github.com/virtual-imaging-platform/GRIDA/releases/download/2.0.1/grida-server-2.0.1.jar -O /home/vip/grida/grida-server-2.0.1.jar
   - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/grida/grida-server.conf
   - systemctl enable grida.service
-  - systemctl start grida.service
 
   ###############################
   # Tomcat : needs grida, sma, httpd.
   - echo "-------------- tomcat --------------"
   - yum -y -q install tomcat
-  - wget -q https://github.com/virtual-imaging-platform/VIP-portal/releases/download/1.21/vip-portal-1.21.war -O /var/lib/tomcat/webapps/vip-portal.war
+  - wget -q https://github.com/virtual-imaging-platform/VIP-portal/releases/download/1.27/vip-portal-1.27.war -O /var/lib/tomcat/webapps/vip-portal.war
   - chown -R root:tomcat /var/lib/tomcat/webapps
   - mkdir -p /usr/share/tomcat/.vip/proxies/${VO_NAME}
   # The HOME of tomcat is /usr/share/tomcat.  This is where vip will
@@ -973,11 +1079,13 @@ runcmd:
   # write_files cannot do the chown.
   - chown -R tomcat:tomcat /usr/share/tomcat/.vip
   - /root/sbin/update-conf.sh /root/global_configuration.txt /usr/share/tomcat/.vip/vip.conf
+  - /root/sbin/update-conf.sh /root/global_configuration.txt /usr/share/tomcat/.vip/vip-api.conf
   - touch /usr/share/tomcat/.vip/vip.log
   - chown tomcat:tomcat /usr/share/tomcat/.vip/vip.log
   - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/tomcat-server.xml
   - awk -v r="`cat /home/vip/tomcat-server.xml`" '{sub(/.*<GlobalNamingResources>.*$/, r)}1' /etc/tomcat/server.xml > /tmp/tomcat-server-$$.xml
   - mv /tmp/tomcat-server-$$.xml /etc/tomcat/server.xml
+  - mv /home/vip/tomcat-setenv.conf /usr/share/tomcat/conf/conf.d/setenv.conf
   - systemctl enable tomcat
   # tomcat is started at the end of the script, when selinux security
   # is configured.
@@ -985,6 +1093,20 @@ runcmd:
   # We restart tomcat each night.  It regularly looses the connexion to
   # the database.
   - echo "30 4 * * * systemctl restart tomcat" >> /var/spool/cron/root
+
+  # add vip to the tomcat group so grida can access the vip proxies
+  - usermod -a -G tomcat vip
+  # add grida upload directory
+  - mkdir /home/vip/grida/uploads
+
+  # Needed by grida to put the gwendia files when launching an execution
+  - mkdir /usr/share/tomcat/.vip/workflows
+  - chown vip:vip /usr/share/tomcat/.vip/workflows
+
+  # tomcat needs boutiques
+  - yum -y install python-pip git
+  - pip install --upgrade pip
+  - pip install "git+https://github.com/boutiques/boutiques@0.5.23#egg=boutiques&subdirectory=tools/python"
 
   ###############################
   # Install docker, which may be used by moteur to run local applications.
@@ -1000,7 +1122,7 @@ runcmd:
   - mkdir -p ${DIRAC_INSTALL_DIR}
   - wget -O ${DIRAC_INSTALL_DIR}/dirac-install --no-check-certificate -np https://raw.github.com/DIRACGrid/DIRAC/integration/Core/scripts/dirac-install.py
   - chmod +x ${DIRAC_INSTALL_DIR}/dirac-install
-  - cd ${DIRAC_INSTALL_DIR} && ./dirac-install -V gridfr
+  - cd ${DIRAC_INSTALL_DIR} && ./dirac-install -V gridfr -r v6r21p1 -e COMDIRAC
   - rm -f ${DIRAC_INSTALL_DIR}/dirac-install
   # Dirac configuration needs a proxy certificate.  See instructions
   # in the README.md file.
@@ -1026,7 +1148,7 @@ runcmd:
   - chmod +x ${MOTEUR_DEST_DIR}/killWorkflow.sh ${MOTEUR_DEST_DIR}/submitWorkflow.sh
 
   # Install moteur complementary tools
-  - wget -q https://github.com/virtual-imaging-platform/Complementary-tools/archive/master.zip -O Complementary-tools.zip
+  - wget -q https://github.com/virtual-imaging-platform/Complementary-tools/archive/1.27.zip -O Complementary-tools.zip
   - unzip -q Complementary-tools.zip
   - rm Complementary-tools.zip
   # The '*' is for the name of the branch.  This is usefull so that
@@ -1037,17 +1159,6 @@ runcmd:
   - mkdir ${MOTEUR_DEST_DIR}/.moteur2
   - mv conf/.moteur2/moteur2.conf ${MOTEUR_DEST_DIR}/.moteur2
   - mv conf/prod /var/www/prod
-
-  # gfal and lcg to gfal scripts
-  - yum -y -q install gfal2-util
-  - mkdir ${MOTEUR_DEST_DIR}/bin
-  - mv lcg-gfal/* ${MOTEUR_DEST_DIR}/bin
-  - /root/sbin/update-conf.sh /root/global_configuration.txt ${MOTEUR_DEST_DIR}/bin/lcg-cr
-  # The log file must exist, so that it can receive correct selinux rights.
-  - export GFAL_LOGS=${MOTEUR_DEST_DIR}/gfal.log
-  - touch ${GFAL_LOGS}
-  - chmod 0644 ${GFAL_LOGS}
-  - unset GFAL_LOGS
 
   - mv moteur/* ${MOTEUR_DEST_DIR}
 
@@ -1076,21 +1187,44 @@ runcmd:
   # Update /var/www/.moteur2/moteur2plugins.conf
   - /root/sbin/update_moteur2_plugin_conf.sh
 
-  # Should not be needed after next version of moteur2 VIP plugin
-  # https://github.com/virtual-imaging-platform/Moteur2-WorkflowsDB-Common/pull/1
-  - mkdir -p /home/vip/.moteur2
-  - cp /var/www/prod/.moteur2/moteur2plugins.conf /home/vip/.moteur2/moteur2plugins.conf
+  # Update /var/www/.moteur2/moteur2-grida.conf
+  - /root/sbin/update_moteur2_grida_conf.sh
+
+  # Copy moteur2plugins conf for tomcat/vip
+  - mkdir -p /usr/share/tomcat/.moteur2
+  - cp /var/www/prod/.moteur2/moteur2plugins.conf /usr/share/tomcat/.moteur2/moteur2plugins.conf
+  - chown -R tomcat:tomcat /usr/share/tomcat/.moteur2
 
   # After it has been updated.
   - cp ${MOTEUR_DEST_DIR}/.moteur2/moteur2.conf /var/www/.moteur2
 
   - unset MOTEUR_DEST_DIR
 
+  ###############################
+  # GRIDA for moteur, under user apache
+  - echo "-------------- grida moteur --------------"
+  - mkdir -p /var/www/prod/grida/cache
+  - cp /home/vip/grida/grida-server-2.0.1.jar /var/www/prod/grida
+  - mv /home/vip/grida/grida-apache-server.conf  /var/www/prod/grida/grida-server.conf
+  - /root/sbin/update-conf.sh /root/global_configuration.txt /var/www/prod/grida/grida-server.conf
+
+  - mkdir /usr/share/httpd/.dirac
+  - chown apache:apache /usr/share/httpd/.dirac
+  - mkdir /usr/share/httpd/.cache # necessary for boutiques
+  - chown apache:apache /usr/share/httpd/.cache
+
+  - systemctl enable grida_apache.service
+  - systemctl start grida_apache.service
+
   - mkdir -p /var/www/html/workflows
   - chown -R apache:apache /var/www
 
   - /root/sbin/update-conf.sh /root/global_configuration.txt /root/sbin/update_proxy_for_vip_moteur_dirac.sh
   - echo "0 */6 * * * /root/sbin/update_proxy_for_vip_moteur_dirac.sh >> /root/cron-update-proxy.log 2>&1" >> /var/spool/cron/root
+
+  ###############################
+  - echo "-------- Install necessary moteur package with yum  --------------"
+  - yum -y -q install time boost-python
 
   ###############################
   - echo "-------------- Installing voms --------------"
@@ -1100,6 +1234,8 @@ runcmd:
   # Make vip owner of its home directory
   - echo "-------------- vip home --------------"
   - chown -R vip:vip /home/vip
+  # but not the upload dir where vip/tomcat must write
+  - chown tomcat:tomcat /home/vip/grida/uploads
 
   ###############################
   # Make ADMIN_EMAIL member of the "Support" group (administrators)
@@ -1124,7 +1260,7 @@ runcmd:
   - systemctl restart postfix
 
   ###############################
-  # Try again to start grida, it gives a NPE the first time.
+  # start grida now as it needs moteur installed and the chown on /home/vip done
   - echo "-------------- restart grida --------------"
   - systemctl start grida
 
@@ -1168,9 +1304,13 @@ runcmd:
   - semanage fcontext -a -t tomcat_log_t /usr/share/tomcat/.vip/vip.conf
   - semanage fcontext -a -t tomcat_log_t /usr/share/tomcat/.vip/vip.log
 
+  # for grida
+  - semanage fcontext -a -t tomcat_log_t /home/vip/grida/uploads
+
   - /usr/sbin/restorecon -r /var/www
   - /usr/sbin/restorecon -r /home/vip
   - /usr/sbin/restorecon -r /usr/share/tomcat/.vip
+  - /usr/sbin/restorecon -r /usr/share/tomcat/.moteur2
 
   - cd /root
   - checkmodule -M -m -o vip.mod vip.te
@@ -1180,4 +1320,6 @@ runcmd:
   # Start tomcat once selinux security is configured.
   - systemctl start tomcat
 
-  - setenforce Enforcing
+  # SELinux Enforcing OK to run basic VIP, but too many things to tweak
+  # to import applications and run moteur
+  #- setenforce Enforcing
