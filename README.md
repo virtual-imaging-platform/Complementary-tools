@@ -9,7 +9,7 @@ at the start of the file.
 ### Manual configuration
 
 Once the VM has been instanciated using the cloud-init file, several
-certifacates must be manually copied to the VM:
+certificates must be manually copied to the VM:
 
 #### Robot certificate used for vip / moteur / dirac
 
@@ -19,27 +19,8 @@ Upload the file:
 ```
 
 This file must be regularly updated so that the proxy never expires.
-It is used throu cron files to creates the proxies used by vip, moteur
+It is used through cron files to creates the proxies used by vip, moteur
 and dirac.
-
-#### Myproxy certificates (deprecated)
-
-myproxy is no more used, as all proxy files are updated with the
-script `update_proxy_for_vip_moteur_dirac.sh`.  This part is
-deprecated.
-
-Upload the files:
-```shell
-/etc/grid-security/myproxy/hostcert.pem
-/etc/grid-security/myproxy/hostkey.pem
-```
-
-Run the commands:
-```shell
-cd /etc/grid-security/myproxy
-chown myproxy:root * && chmod 600 hostkey.pem
-systemctl restart myproxy-server
-```
 
 #### Machine certificate
 
@@ -51,10 +32,12 @@ in the directories:
 /etc/pki/tls/certs/<hostname>.crt
 ```
 
-#### Final commands
+#### Proxy generation
 
-The following commands need that the file `/tmp/dirac-robot` exists
-and is the valid proxy that will be used.
+The following commands must be done :
+- at the first startup
+- every time the `/tmp/dirac-robot` is not valid (or with a validity duration too short) and VIP fails to start because of that
+They need that the file `/tmp/dirac-robot` exists and is the valid proxy that will be used.
 
 Create a proxy with the voms extension.  This is done regularly via
 cron, but must be done once, so that the proxies can be used
@@ -85,6 +68,23 @@ And finally restart tomcat.
 systemctl restart tomcat
 ```
 
+#### SQL commands
+
+In the current version, the database build automatically by VIP contains some errors. This won't be necessary in the next VIP version, but with the 1.27 version, the folowing commands must be done to correct that (`$DB_ROOT_PASSWD` comes from the `/root/global_configuration.txt` file):
+
+```
+mysql --user=root --password=$DB_ROOT_PASSWD -e "use vip;ALTER TABLE VIPEngines ADD COLUMN status VARCHAR(255) DEFAULT NULL;"
+mysql --user=root --password=$DB_ROOT_PASSWD -e "use vip;ALTER TABLE VIPApplications ADD COLUMN lfn varchar(255) DEFAULT NULL;"
+mysql --user=root --password=$DB_ROOT_PASSWD -e "use vip;INSERT INTO VIPEngines (name, endpoint, status) VALUES ('local','http://${HOSTNAME}/cgi-bin/m2Server-gasw3/moteur_server','enabled');"
+```
+
+### SE Linux
+
+The `vip.te` file is the SELinux security configuration of the server installed by
+the cloud-init file. The rules it contains allow to run VIP in a secure environment,
+but in the current state, several SELinux rules are broken by moteur. So SELinux needs
+to be in `Permissive` mode for the whole platform to run properly.
+
 ## Description of some files and folders
 
 (Most of) all these files are downloaded by the cloud-init script
@@ -99,13 +99,6 @@ Configuration files for moteur.
 Python scripts to add to default dirac installation, to add some
 services needed by moteur.
 
-### lcg-gfal
-
-Contains shell-scripts for some lcg executables, and runs the
-equivalent gfal command, effectively transforming a lcg command into a
-gfal command.  The lcg executables delivered with dirac don't work, so
-this is a workaround.
-
 ### moteur
 
 Many jars to install moteur, and some associated configuration files.
@@ -115,8 +108,3 @@ Many jars to install moteur, and some associated configuration files.
 This file can be used to instantiate a VM running all the services
 needed to run a VIP server.  It must be configured at the start of the
 file to adapt to your environment (administrator, VO tu use, …).
-
-### vip.te
-
-This is the SELinux security configuration of the server installed by
-the cloud-init file.
