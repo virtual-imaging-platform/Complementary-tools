@@ -75,7 +75,7 @@ write_files:
       LCG_GFAL_INFOSYS_HOST=cclcgtopbdii02.in2p3.fr
       LCG_GFAL_INFOSYS_PORT=2170
       DFC_VIP_ROOT_DIR=MODIFY
-      SE_LIST=sbgse1.in2p3.fr
+      SE_LIST=MODIFY
       DB_ROOT_PASSWD="4fa59a1d7adc7e448328f7b6f9a08366"
       DB_VIP_USERNAME=vip
       DB_VIP_PASSWORD=MODIFY
@@ -287,6 +287,9 @@ write_files:
       carmin.data.download.retry=2
       carmin.data.download.timeout=45
       carmin.data.max_size=300000000
+
+      # Pipeline stuff
+      carmin.processing.pipelines.whitelist=
     permissions: '0644'
 
   - path: /home/vip/.vip/vip.sql
@@ -415,7 +418,7 @@ write_files:
       agent.min.available.diskspace = 0.02
 
       lfc.host = <LFC_HOST>
-      lfc.preferredSEsList = <SE_LIST>
+      preferredSEsList = <SE_LIST>
 
       vo = <VO_NAME>
 
@@ -459,7 +462,7 @@ write_files:
       agent.min.available.diskspace = 0.02
 
       lfc.host = <LFC_HOST>
-      lfc.preferredSEsList = <SE_LIST>
+      preferredSEsList = <SE_LIST>
 
       vo = <VO_NAME>
 
@@ -820,9 +823,6 @@ write_files:
         sleep 5
       done
       mysql --user=root --password=$DB_ROOT_PASSWD -e "use vip;insert into VIPUsersGroups values ('$ADMIN_EMAIL', 'Support', 'User');insert into VIPTermsOfuse (date, text) values (now(), 'the text');"
-      mysql --user=root --password=$DB_ROOT_PASSWD -e "use vip;ALTER TABLE VIPEngines ADD COLUMN status VARCHAR(255) DEFAULT NULL;"
-      mysql --user=root --password=$DB_ROOT_PASSWD -e "use vip;ALTER TABLE VIPApplications ADD COLUMN lfn varchar(255) DEFAULT NULL;"
-      mysql --user=root --password=$DB_ROOT_PASSWD -e "use vip;INSERT INTO VIPEngines (name, endpoint, status) VALUES ('local','${HOSTNAME}','enabled');""
       if [ "$waited" = "true" ]
       then
         echo "${script_name} now done"
@@ -889,7 +889,7 @@ write_files:
         echo -e "Enforce mode is ${prefix}${mode}${NOCOLOR}"
       }
 
-      services="fail2ban fetch-crl-cron grida h2 haveged httpd mariadb postfix sma tomcat"
+      services="fail2ban fetch-crl-cron grida grida_apache h2 haveged httpd mariadb postfix sma tomcat"
       check_services $services
 
       check_audit
@@ -1085,7 +1085,7 @@ runcmd:
   - /root/sbin/update-conf.sh /root/global_configuration.txt /home/vip/tomcat-server.xml
   - awk -v r="`cat /home/vip/tomcat-server.xml`" '{sub(/.*<GlobalNamingResources>.*$/, r)}1' /etc/tomcat/server.xml > /tmp/tomcat-server-$$.xml
   - mv /tmp/tomcat-server-$$.xml /etc/tomcat/server.xml
-  - mv /home/vip/tomcat-setenv.conf /usr/share/tomcat/bin/setenv.conf
+  - mv /home/vip/tomcat-setenv.conf /usr/share/tomcat/conf/conf.d/setenv.conf
   - systemctl enable tomcat
   # tomcat is started at the end of the script, when selinux security
   # is configured.
@@ -1096,18 +1096,17 @@ runcmd:
 
   # add vip to the tomcat group so grida can access the vip proxies
   - usermod -a -G tomcat vip
-  # add grida upload directory so that vip/tomcat can write in it
+  # add grida upload directory
   - mkdir /home/vip/grida/uploads
-  - chown tomcat:tomcat /home/vip/grida/uploads
 
   # Needed by grida to put the gwendia files when launching an execution
   - mkdir /usr/share/tomcat/.vip/workflows
   - chown vip:vip /usr/share/tomcat/.vip/workflows
 
   # tomcat needs boutiques
-  - yum -y install python-pip
+  - yum -y install python-pip git
   - pip install --upgrade pip
-  - pip install boutiques==0.5.22.post2
+  - pip install "git+https://github.com/boutiques/boutiques@0.5.23#egg=boutiques&subdirectory=tools/python"
 
   ###############################
   # Install docker, which may be used by moteur to run local applications.
@@ -1149,7 +1148,7 @@ runcmd:
   - chmod +x ${MOTEUR_DEST_DIR}/killWorkflow.sh ${MOTEUR_DEST_DIR}/submitWorkflow.sh
 
   # Install moteur complementary tools
-  - wget -q https://github.com/virtual-imaging-platform/Complementary-tools/archive/master.zip -O Complementary-tools.zip
+  - wget -q https://github.com/virtual-imaging-platform/Complementary-tools/archive/1.27.zip -O Complementary-tools.zip
   - unzip -q Complementary-tools.zip
   - rm Complementary-tools.zip
   # The '*' is for the name of the branch.  This is usefull so that
@@ -1224,7 +1223,6 @@ runcmd:
   - echo "0 */6 * * * /root/sbin/update_proxy_for_vip_moteur_dirac.sh >> /root/cron-update-proxy.log 2>&1" >> /var/spool/cron/root
 
   ###############################
-  # GRIDA for moteur, under user apache
   - echo "-------- Install necessary moteur package with yum  --------------"
   - yum -y -q install time boost-python
 
@@ -1236,6 +1234,8 @@ runcmd:
   # Make vip owner of its home directory
   - echo "-------------- vip home --------------"
   - chown -R vip:vip /home/vip
+  # but not the upload dir where vip/tomcat must write
+  - chown tomcat:tomcat /home/vip/grida/uploads
 
   ###############################
   # Make ADMIN_EMAIL member of the "Support" group (administrators)
