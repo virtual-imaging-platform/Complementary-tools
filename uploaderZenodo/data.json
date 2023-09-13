@@ -1,0 +1,19 @@
+{
+    "files_to_download": [
+        "/path/to/example/file1.py",
+        "/path/to/example/file2.py"
+    ],
+    "metadata": {
+        "metadata": {
+            "title": "your title",
+            "upload_type": "workflow",
+            "description": "your description",
+            "creators": [
+                {
+                    "name": "your name",
+                    "affiliation": "your affiliation"
+                }
+            ]
+        }
+    }
+}
