@@ -5,6 +5,7 @@ import tempfile
 import requests
 import subprocess
 import configparser
+import argparse
 
 """
 Script: ZenodoUploader
@@ -115,13 +116,22 @@ class ZenodoUploader:
             shutil.rmtree(temp_dir)
 
 if __name__ == "__main__":
+    # Creating an argument parser
+    parser = argparse.ArgumentParser(description="Script to download from Grida and upload to Zenodo.")
+
+    # Add expected arguments for configuration files
+    parser.add_argument('--config', required=True, help="Path to config.ini file.")
+    parser.add_argument('--data', required=True, help="Path to data.json file.")
+
+    args = parser.parse_args()
+
     config = configparser.ConfigParser()
-    config.read('config.ini')
+    config.read(args.config)
 
     ACCESS_TOKEN = config['SETTINGS']['ACCESS_TOKEN']
     GRIDA_DIRECTORY = config['SETTINGS']['GRIDA_DIRECTORY']
 
-    with open('data.json', 'r') as f:
+    with open(args.data, 'r') as f:
         data = json.load(f)
 
     files_to_download = data['files_to_download']
