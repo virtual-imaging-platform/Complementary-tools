@@ -84,16 +84,38 @@ class ZenodoUploader:
         response.raise_for_status()
         return response.json()["links"]["bucket"]
     
-    # This method downloads files via Grida
-    def download_files(self, files_to_download, temp_directory, grida_directory):
+        # This method downloads files via Grida
+    def download_files(self, boutique_descriptor, target_directory, grida_directory, invocation_outputs):
         downloaded_files = []
 
-        for file_path in files_to_download:
-            bash_command = f"java -jar grida-standalone-2.3.0-20230905.072020-1-jar-with-dependencies.jar -r grida-server.conf getFile {file_path} {temp_directory}"
-            result = subprocess.run(['bash', '-c', bash_command], cwd=grida_directory, capture_output=True, text=True)
-            if result.returncode == 0:
-                downloaded_files.append(result.stdout.strip())
+        # Télécharger le fichier unique spécifié dans 'descriptor_boutique'
+        bash_command = f"java -jar grida-standalone-2.3.0-20230905.072020-1-jar-with-dependencies.jar getFile {boutique_descriptor} {target_directory}"
+
+         # Exécuter la commande
+        result = subprocess.run(['bash', '-c', bash_command], cwd=grida_directory, stdout=PIPE, stderr=PIPE, check=False)
+
+        print(result.stdout)
+        print(result.stderr)
+
+        for subdir, files in invocation_outputs.items():
+            # Chemin complet où les fichiers seront téléchargés
+            complete_target_path = os.path.join(target_directory, subdir)
+
+            for lfn_path in files:
+                # Normalisation du chemin
+                file_path = lfn_path.replace('lfn://', '')
+
+                bash_command = f"java -jar grida-standalone-2.3.0-20230905.072020-1-jar-with-dependencies.jar getFile {file_path} {complete_target_path}"
+                # bash_command = f"java -jar grida-standalone-2.3.0-20230905.072020-1-jar-with-dependencies.jar -r grida-server.conf getFile {file_path} {temp_directory}"
+
+                # Exécuter la commande
+                result = subprocess.run(['bash', '-c', bash_command], cwd=grida_directory, stdout=PIPE, stderr=PIPE, check=False)
+                #result = subprocess.run(['bash', '-c', bash_command], cwd=grida_directory, capture_output=True, text=True)
                 
+                # Afficher les sorties
+                print(result.stdout)
+                print(result.stderr)
+
         return downloaded_files
 
     def upload_files(self, files_to_download, metadata, grida_directory):
@@ -109,11 +131,20 @@ class ZenodoUploader:
 
             self.update_deposition_metadata(deposition["id"], metadata)
             self.publish_deposition(deposition["id"])
-            
+
             return deposition
 
         finally:
             shutil.rmtree(temp_dir)
+
+    def compress_subdirectories_as_tar_gz(self, target_directory):
+        for item in os.listdir(target_directory):
+            item_path = os.path.join(target_directory, item)
+            if os.path.isdir(item_path):
+                output_filename = f"{item_path}.tar.gz"
+                with tarfile.open(output_filename, "w:gz") as tar:
+                    tar.add(item_path, arcname=os.path.basename(item_path))
+                print(f"Dossier compressé : {output_filename}")
 
 if __name__ == "__main__":
     # Creating an argument parser
@@ -130,13 +161,21 @@ if __name__ == "__main__":
 
     ACCESS_TOKEN = config['SETTINGS']['ACCESS_TOKEN']
     GRIDA_DIRECTORY = config['SETTINGS']['GRIDA_DIRECTORY']
+    # Set the X509_USER_PROXY environment variable
+    os.environ['X509_USER_PROXY'] = config['SETTINGS']['X509_USER_PROXY']
+
 
     with open(args.data, 'r') as f:
         data = json.load(f)
 
-    files_to_download = data['files_to_download']
+    boutique_descriptor = data['descriptor_boutique']
     metadata = data['metadata']
+    invocation_outputs = data['invocation_outputs']
 
     uploader = ZenodoUploader(ACCESS_TOKEN)
-    uploader.upload_files(files_to_download, metadata, GRIDA_DIRECTORY)
+    path_workflow_directory = data['path_workflow_directory'].replace('file://', '').rstrip('/')
+    #uploader.upload_files(files_to_download, metadata, GRIDA_DIRECTORY)
+
+    uploader.download_files(boutique_descriptor, path_workflow_directory, GRIDA_DIRECTORY, invocation_outputs)
+    uploader.compress_subdirectories_as_tar_gz(path_workflow_directory)
 
