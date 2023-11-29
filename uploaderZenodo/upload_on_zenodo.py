@@ -118,26 +118,21 @@ class ZenodoUploader:
 
         return downloaded_files
 
-    def upload_files(self, files_to_download, metadata, grida_directory):
-        temp_dir = tempfile.mkdtemp()
+    def upload_files(self, compressed_files, metadata):
 
-        try:
-            downloaded_files = self.download_files(files_to_download, temp_dir, grida_directory)
-            deposition = self.create_deposition()
+        deposition = self.create_deposition()
 
-            for path in downloaded_files:
-                filename = os.path.basename(path)
-                self.upload_file_to_deposition(deposition["id"], path, filename)
+        for path in downloaded_files:
+            filename = os.path.basename(path)
+            self.upload_file_to_deposition(deposition["id"], path, filename)
 
-            self.update_deposition_metadata(deposition["id"], metadata)
-            self.publish_deposition(deposition["id"])
+        self.update_deposition_metadata(deposition["id"], metadata)
+        self.publish_deposition(deposition["id"])
 
-            return deposition
-
-        finally:
-            shutil.rmtree(temp_dir)
+        return deposition
 
     def compress_subdirectories_as_tar_gz(self, target_directory):
+        compressed_files = []
         for item in os.listdir(target_directory):
             item_path = os.path.join(target_directory, item)
             if os.path.isdir(item_path):
@@ -145,6 +140,8 @@ class ZenodoUploader:
                 with tarfile.open(output_filename, "w:gz") as tar:
                     tar.add(item_path, arcname=os.path.basename(item_path))
                 print(f"Dossier compressé : {output_filename}")
+                compressed_files.append(output_filename)
+        return compressed_files
 
 if __name__ == "__main__":
     # Creating an argument parser
@@ -174,8 +171,8 @@ if __name__ == "__main__":
 
     uploader = ZenodoUploader(ACCESS_TOKEN)
     path_workflow_directory = data['path_workflow_directory'].replace('file://', '').rstrip('/')
-    #uploader.upload_files(files_to_download, metadata, GRIDA_DIRECTORY)
 
     uploader.download_files(boutique_descriptor, path_workflow_directory, GRIDA_DIRECTORY, invocation_outputs)
-    uploader.compress_subdirectories_as_tar_gz(path_workflow_directory)
+    compressed_files = uploader.compress_subdirectories_as_tar_gz(path_workflow_directory)
+    uploader.upload_files(compressed_files, metadata, GRIDA_DIRECTORY)
 
