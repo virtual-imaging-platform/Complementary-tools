@@ -141,6 +141,9 @@ class ZenodoUploader:
                     tar.add(item_path, arcname=os.path.basename(item_path))
                 print(f"Dossier compressé : {output_filename}")
                 compressed_files.append(output_filename)
+            elif item.endswith('.json') and item != 'workflowMetadata.json':
+                compressed_files.append(os.path.join(target_directory, item))
+
         return compressed_files
 
 if __name__ == "__main__":
@@ -172,7 +175,7 @@ if __name__ == "__main__":
     uploader = ZenodoUploader(ACCESS_TOKEN)
     path_workflow_directory = data['path_workflow_directory'].replace('file://', '').rstrip('/')
 
-    uploader.download_files(boutique_descriptor, path_workflow_directory, GRIDA_DIRECTORY, invocation_outputs)
+    downloaded_files = uploader.download_files(boutique_descriptor, path_workflow_directory, GRIDA_DIRECTORY, invocation_outputs)
     compressed_files = uploader.compress_subdirectories_as_tar_gz(path_workflow_directory)
-    uploader.upload_files(compressed_files, metadata, GRIDA_DIRECTORY)
+    uploader.upload_files(compressed_files, metadata)
 
