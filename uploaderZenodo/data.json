@@ -1,8 +1,16 @@
 {
-    "files_to_download": [
+    "path_workflow_directory": "blou",
+    "descriptor_boutique": "bli",
+    "files_to_upload": [
         "/path/to/example/file1.py",
         "/path/to/example/file2.py"
     ],
+    "invocation_outputs": {
+        "bla": [
+            "bleu",
+            "bleau"
+        ]
+    },
     "metadata": {
         "metadata": {
             "title": "your title",

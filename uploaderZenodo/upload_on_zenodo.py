@@ -1,181 +1,146 @@
 import os
 import json
-import shutil
-import tempfile
 import requests
 import subprocess
 import configparser
 import argparse
+import tarfile
+from subprocess import PIPE
 
-"""
-Script: ZenodoUploader
+verbose = None
 
-Author: Alexandre Cornier
-Date: 13/09/2023
+class ZenodoAPI:
+    def __init__(self, token: str):
+        self.base_url = "https://sandbox.zenodo.org/api"
+        self.token = token
 
-Description:
-This script automates the process of uploading files to Zenodo, a platform for sharing scientific data. 
-It utilizes Zenodo's API to create a new deposition, upload files to it, 
-update the metadata of the deposition, and finally publish it. Additionally, it first downloads 
-the files via Grida before uploading them to Zenodo.
+    def create_deposition(self) -> str:
+        return self.__request("deposit/depositions", mode="post")
 
-Required Parameters:
-1. ACCESS_TOKEN: Your personal Zenodo access token. Never share this token publicly.
-    - To be defined in the config.ini file under the [SETTINGS] section.
-    
-2. GRIDA_DIRECTORY: The path to your Grida directory.
-    - To be defined in the config.ini file under the [SETTINGS] section.
+    def update_deposition_metadata(self, deposition_id: str, metadata: dict) -> str:
+        return self.__request(f"deposit/depositions/{deposition_id}", mode="put", data=json.dumps(metadata))
 
-3. files_to_download: A list of files to be downloaded via Grida for subsequent upload to Zenodo.
-    - To be defined in the data.json file.
+    def publish_deposition(self, deposition_id: str):
+        return self.__request(f"deposit/depositions/{deposition_id}/actions/publish", mode="post")
 
-4. metadata: Metadata associated with the Zenodo deposition like title, upload type, description, etc.
-    - To be defined in the data.json file.
+    def upload_file_to_deposition(self, deposition_id: str, file_path: str) -> str:
+        bucket_url = self.get_bucket_url(deposition_id).removeprefix(self.base_url)
+        file_name = os.path.basename(file_path)
 
-Usage:
-Once parameters are set, run the script to download files via Grida and auto-upload them to Zenodo.
+        with open(file_path, "rb") as file:
+            return self.__request(f"{bucket_url}/{file_name}", mode="put", data=file)
 
-Note:
-Ensure the path to the Grida directory is accurate and that your Zenodo token is valid.
-"""
+    def get_bucket_url(self, deposition_id: str) -> str:
+        data = self.__request(f"deposit/depositions/{deposition_id}", mode="get")
+        return data["links"]["bucket"]
+
+    def __request(self, endpoint: str, mode: str, **kwargs) -> str:
+        params = {"access_token": self.token}
+        methods = {"put": requests.put, "post": requests.post, "get": requests.get}
+        
+        response: requests.Response = methods[mode](f"{self.base_url}/{endpoint}", params=params, json={}, **kwargs)
+        logger("requests", response.json(), True)
+        response.raise_for_status()
+        return response.json()
 
 class ZenodoUploader:
+    def __init__(self, grida_dir):
+        self.grida_dir = grida_dir
 
-    # The constructor is used to initialize a new instance of the class.
-    def __init__(self, access_token):
-        # BASE_URL is the base URL of the Zenodo API.
-        self.BASE_URL = "https://sandbox.zenodo.org/api/deposit/depositions"
-        # Headers for HTTP requests.
-        self.headers = {"Content-Type": "application/json"}
-        # Parameters for HTTP requests. `access_token` is used to authenticate with the API.
-        self.params = {'access_token': access_token}
+    def __get_file_grida(self, src: str, dest: str):
+        cmd = f"java -jar grida-standalone.jar getFile {src} {dest}"
+        process = subprocess.run(["bash", "-c", cmd], cwd=self.grida_dir, stdout=PIPE, stderr=PIPE, check=False)
 
-    # This method creates a new deposition on Zenodo and returns its representation as JSON.
-    def create_deposition(self):
-        response = requests.post(self.BASE_URL, params=self.params, json={}, headers=self.headers)
-        response.raise_for_status()
-        return response.json()
+        logger("grida-out", process.stdout.decode())
+        logger("grida-err", process.stderr.decode())
 
-    # This method uploads a file to a specified Zenodo repository.
-    def upload_file_to_deposition(self, deposition_id, file_path, file_name):
-        # We obtain the bucket's download URL using another method in this class.
-        bucket_url = self.get_bucket_url(deposition_id)
-        
-        with open(file_path, "rb") as fp:
-            response = requests.put(f"{bucket_url}/{file_name}", data=fp, params=self.params)
-            response.raise_for_status()
-            return response.json()
-
-    # This method updates the metadata of a specified deposition on Zenodo.
-    def update_deposition_metadata(self, deposition_id, metadata):
-        response = requests.put(f"{self.BASE_URL}/{deposition_id}", params=self.params, data=json.dumps(metadata), headers=self.headers)
-        response.raise_for_status()
-        return response.json()
-
-    # This method publishes a specified deposition on Zenodo.
-    def publish_deposition(self, deposition_id):
-        response = requests.post(f"{self.BASE_URL}/{deposition_id}/actions/publish", params=self.params)
-        response.raise_for_status()
-        return response.json()
-
-    # This auxiliary method obtains the bucket URL (used for downloading files) for a specified deposition.
-    def get_bucket_url(self, deposition_id):
-        response = requests.get(f"{self.BASE_URL}/{deposition_id}", params=self.params)
-        response.raise_for_status()
-        return response.json()["links"]["bucket"]
-    
-        # This method downloads files via Grida
-    def download_files(self, boutique_descriptor, target_directory, grida_directory, invocation_outputs):
-        downloaded_files = []
-
-        # Télécharger le fichier unique spécifié dans 'descriptor_boutique'
-        bash_command = f"java -jar grida-standalone-2.3.0-20230905.072020-1-jar-with-dependencies.jar getFile {boutique_descriptor} {target_directory}"
-
-         # Exécuter la commande
-        result = subprocess.run(['bash', '-c', bash_command], cwd=grida_directory, stdout=PIPE, stderr=PIPE, check=False)
-
-        print(result.stdout)
-        print(result.stderr)
+    def download(self, boutique_descriptor: str, invocation_outputs: str, target_directory: str):
+        """Download files using grida"""
+        self.__get_file_grida(boutique_descriptor, target_directory)
 
         for subdir, files in invocation_outputs.items():
-            # Chemin complet où les fichiers seront téléchargés
-            complete_target_path = os.path.join(target_directory, subdir)
+            target_path = os.path.join(target_directory, subdir)
 
             for lfn_path in files:
-                # Normalisation du chemin
                 file_path = lfn_path.replace('lfn://', '')
+                self.__get_file_grida(file_path, target_path)
+        logger("global", "files downloaded using grida!")
 
-                bash_command = f"java -jar grida-standalone-2.3.0-20230905.072020-1-jar-with-dependencies.jar getFile {file_path} {complete_target_path}"
-                # bash_command = f"java -jar grida-standalone-2.3.0-20230905.072020-1-jar-with-dependencies.jar -r grida-server.conf getFile {file_path} {temp_directory}"
-
-                # Exécuter la commande
-                result = subprocess.run(['bash', '-c', bash_command], cwd=grida_directory, stdout=PIPE, stderr=PIPE, check=False)
-                #result = subprocess.run(['bash', '-c', bash_command], cwd=grida_directory, capture_output=True, text=True)
-                
-                # Afficher les sorties
-                print(result.stdout)
-                print(result.stderr)
-
-        return downloaded_files
-
-    def upload_files(self, compressed_files, metadata):
-
-        deposition = self.create_deposition()
-
-        for path in downloaded_files:
-            filename = os.path.basename(path)
-            self.upload_file_to_deposition(deposition["id"], path, filename)
-
-        self.update_deposition_metadata(deposition["id"], metadata)
-        self.publish_deposition(deposition["id"])
-
-        return deposition
-
-    def compress_subdirectories_as_tar_gz(self, target_directory):
+    def compress(self, target_directory: str):
+        """This will compress directories present in target_directory, the rest will not change"""
         compressed_files = []
+
         for item in os.listdir(target_directory):
             item_path = os.path.join(target_directory, item)
+
             if os.path.isdir(item_path):
                 output_filename = f"{item_path}.tar.gz"
                 with tarfile.open(output_filename, "w:gz") as tar:
                     tar.add(item_path, arcname=os.path.basename(item_path))
-                print(f"Dossier compressé : {output_filename}")
-                compressed_files.append(output_filename)
-            elif item.endswith('.json') and item != 'workflowMetadata.json':
-                compressed_files.append(os.path.join(target_directory, item))
 
+                logger("out", f"compressed folder : {output_filename}")
+                compressed_files.append(output_filename)
+
+            elif item.endswith('.json') and item != 'workflowMetadata.json':
+                compressed_files.append(item_path)
+
+        logger("global", "files compressed!")
         return compressed_files
 
-if __name__ == "__main__":
-    # Creating an argument parser
+    def upload(self, token: str, files: list, metadata: dict):
+        """Upload to zenodo"""
+        api = ZenodoAPI(token)
+
+        deposition_id = api.create_deposition()["id"]
+        logger("global", f"deposition created on zenodo with id: {deposition_id}")
+
+        for file in files:
+            api.upload_file_to_deposition(deposition_id, file)
+            logger("global", f"file {file} uploaded to zenodo")
+
+        api.update_deposition_metadata(deposition_id, metadata)
+        logger("global", f"metadata of deposition {deposition_id} updated!")
+        api.publish_deposition(deposition_id)
+        logger("global", "deposition set as published on zenodo!")
+
+def logger(std, msg, debug=False):
+    if (debug and verbose) or not debug and len(msg) != 0:
+        print(f"[zenodo-uploader][{std}]: {msg}")
+
+def main():
     parser = argparse.ArgumentParser(description="Script to download from Grida and upload to Zenodo.")
 
-    # Add expected arguments for configuration files
     parser.add_argument('--config', required=True, help="Path to config.ini file.")
     parser.add_argument('--data', required=True, help="Path to data.json file.")
-
+    parser.add_argument("--v", action="store_true", help="Add debug logs")
     args = parser.parse_args()
 
-    config = configparser.ConfigParser()
-    config.read(args.config)
+    # debug
+    verbose = True if args.v else False
 
-    ACCESS_TOKEN = config['SETTINGS']['ACCESS_TOKEN']
-    GRIDA_DIRECTORY = config['SETTINGS']['GRIDA_DIRECTORY']
-    # Set the X509_USER_PROXY environment variable
-    os.environ['X509_USER_PROXY'] = config['SETTINGS']['X509_USER_PROXY']
-
-
+    # data.json
     with open(args.data, 'r') as f:
         data = json.load(f)
 
     boutique_descriptor = data['descriptor_boutique']
     metadata = data['metadata']
     invocation_outputs = data['invocation_outputs']
-
-    uploader = ZenodoUploader(ACCESS_TOKEN)
     path_workflow_directory = data['path_workflow_directory'].replace('file://', '').rstrip('/')
 
-    downloaded_files = uploader.download_files(boutique_descriptor, path_workflow_directory, GRIDA_DIRECTORY, invocation_outputs)
-    compressed_files = uploader.compress_subdirectories_as_tar_gz(path_workflow_directory)
-    uploader.upload_files(compressed_files, metadata)
+    # config.json
+    config = configparser.ConfigParser()
+    config.read(args.config)
 
+    token = config['SETTINGS']['ACCESS_TOKEN']
+    grida_directory = config['SETTINGS']['GRIDA_DIRECTORY']
+    os.environ['X509_USER_PROXY'] = config['SETTINGS']['X509_USER_PROXY']
+
+    # runner
+    zenodo = ZenodoUploader(grida_directory)
+
+    zenodo.download(boutique_descriptor, invocation_outputs, path_workflow_directory)
+    compressed_files = zenodo.compress(path_workflow_directory)
+    zenodo.upload(token, compressed_files, metadata)
+
+if __name__ == "__main__":
+    main()
