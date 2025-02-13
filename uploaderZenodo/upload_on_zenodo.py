@@ -10,8 +10,8 @@ from subprocess import PIPE
 verbose = None
 
 class ZenodoAPI:
-    def __init__(self, token: str):
-        self.base_url = "https://sandbox.zenodo.org/api"
+    def __init__(self, url: str, token: str):
+        self.base_url = url
         self.token = token
 
     def create_deposition(self) -> str:
@@ -78,7 +78,7 @@ class ZenodoUploader:
                 with tarfile.open(output_filename, "w:gz") as tar:
                     tar.add(item_path, arcname=os.path.basename(item_path))
 
-                logger("out", f"compressed folder : {output_filename}")
+                logger("global", f"compressed folder : {output_filename}")
                 compressed_files.append(output_filename)
 
             elif item.endswith('.json') and item != 'workflowMetadata.json':
@@ -87,9 +87,9 @@ class ZenodoUploader:
         logger("global", "files compressed!")
         return compressed_files
 
-    def upload(self, token: str, files: list, metadata: dict):
+    def upload(self, zenodo_api: str, token: str, files: list, metadata: dict):
         """Upload to zenodo"""
-        api = ZenodoAPI(token)
+        api = ZenodoAPI(zenodo_api, token)
 
         deposition_id = api.create_deposition()["id"]
         logger("global", f"deposition created on zenodo with id: {deposition_id}")
@@ -116,6 +116,7 @@ def main():
     args = parser.parse_args()
 
     # debug
+    global verbose
     verbose = True if args.v else False
 
     # data.json
@@ -131,16 +132,14 @@ def main():
     config = configparser.ConfigParser()
     config.read(args.config)
 
-    token = config['SETTINGS']['ACCESS_TOKEN']
-    grida_directory = config['SETTINGS']['GRIDA_DIRECTORY']
     os.environ['X509_USER_PROXY'] = config['SETTINGS']['X509_USER_PROXY']
 
     # runner
-    zenodo = ZenodoUploader(grida_directory)
+    zenodo = ZenodoUploader(config['SETTINGS']['GRIDA_DIRECTORY'])
 
     zenodo.download(boutique_descriptor, invocation_outputs, path_workflow_directory)
     compressed_files = zenodo.compress(path_workflow_directory)
-    zenodo.upload(token, compressed_files, metadata)
+    zenodo.upload(config["SETTINGS"]["ZENODO_API"], config['SETTINGS']['ACCESS_TOKEN'], compressed_files, metadata)
 
 if __name__ == "__main__":
     main()
