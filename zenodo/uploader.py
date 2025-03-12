@@ -54,7 +54,7 @@ class ZenodoUploader:
         logger("grida-out", process.stdout.decode())
         logger("grida-err", process.stderr.decode())
 
-    def download(self, boutique_descriptor: str, invocation_outputs: str, target_directory: str):
+    def download(self, boutique_descriptor: str, invocation_outputs: dict, target_directory: str):
         """Download files using grida"""
         self.__get_file_grida(boutique_descriptor, target_directory)
 
@@ -81,7 +81,7 @@ class ZenodoUploader:
                 logger("global", f"compressed folder : {output_filename}")
                 compressed_files.append(output_filename)
 
-            elif item.endswith('.json') and item != 'workflowMetadata.json':
+            elif item.endswith('.json') and item != 'summary.json':
                 compressed_files.append(item_path)
 
         logger("global", "files compressed!")
@@ -110,8 +110,8 @@ def logger(std, msg, debug=False):
 def main():
     parser = argparse.ArgumentParser(description="Script to download from Grida and upload to Zenodo.")
 
-    parser.add_argument('--config', required=True, help="Path to config.ini file.")
-    parser.add_argument('--data', required=True, help="Path to data.json file.")
+    parser.add_argument('config', help="Path to config.ini file.")
+    parser.add_argument('summary', help="Path to summary.json file.")
     parser.add_argument("--v", action="store_true", help="Add debug logs")
     args = parser.parse_args()
 
@@ -120,13 +120,10 @@ def main():
     verbose = True if args.v else False
 
     # data.json
-    with open(args.data, 'r') as f:
+    with open(args.summary, 'r') as f:
         data = json.load(f)
 
-    boutique_descriptor = data['descriptor_boutique']
-    metadata = data['metadata']
-    invocation_outputs = data['invocation_outputs']
-    path_workflow_directory = data['path_workflow_directory'].replace('file://', '').rstrip('/')
+    metadata = {"metadata" : data['metadata']}
 
     # config.json
     config = configparser.ConfigParser()
@@ -137,8 +134,12 @@ def main():
     # runner
     zenodo = ZenodoUploader(config['SETTINGS']['GRIDA_DIRECTORY'])
 
-    zenodo.download(boutique_descriptor, invocation_outputs, path_workflow_directory)
-    compressed_files = zenodo.compress(path_workflow_directory)
+    compressed_files = []
+    for workflow in data["workflows"]:
+        dir = workflow['directory'].replace('file://', '').rstrip('/')
+        zenodo.download(workflow['boutique_descriptor'], workflow['invocation_outputs'], dir)
+        compressed_files.extend(zenodo.compress(dir))
+
     zenodo.upload(config["SETTINGS"]["ZENODO_API"], config['SETTINGS']['ACCESS_TOKEN'], compressed_files, metadata)
 
 if __name__ == "__main__":
