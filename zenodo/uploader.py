@@ -81,7 +81,7 @@ class ZenodoUploader:
                 logger("global", f"compressed folder : {output_filename}")
                 compressed_files.append(output_filename)
 
-            elif item.endswith('.json') and item != 'summary.json':
+            elif (item.endswith('.json') or item.endswith('.md')) and item != 'summary.json':
                 compressed_files.append(item_path)
 
         logger("global", "files compressed!")
@@ -134,12 +134,11 @@ def main():
     # runner
     zenodo = ZenodoUploader(config['SETTINGS']['GRIDA_DIRECTORY'])
 
-    compressed_files = []
     for workflow in data["workflows"]:
         dir = workflow['directory'].replace('file://', '').rstrip('/')
         zenodo.download(workflow['boutique_descriptor'], workflow['invocation_outputs'], dir)
-        compressed_files.extend(zenodo.compress(dir))
 
+    compressed_files = zenodo.compress(os.path.dirname(args.summary))
     zenodo.upload(config["SETTINGS"]["ZENODO_API"], config['SETTINGS']['ACCESS_TOKEN'], compressed_files, metadata)
 
 if __name__ == "__main__":

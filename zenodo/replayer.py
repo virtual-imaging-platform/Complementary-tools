@@ -50,6 +50,9 @@ class AbstractReplayer(ABC):
     def finish(self):
         pass
 
+    def random_session(self) -> str:
+        return f"relaunch-{str(uuid4())[:6]}"
+
 
 class GirderReplayer(AbstractReplayer):
     def __init__(self, config: Config):
@@ -66,7 +69,7 @@ class GirderReplayer(AbstractReplayer):
         inputs = self.transform_inputs(data["inputs"], urls)
         output_base = PurePath(output_dir).name
         self.local_output = output_dir
-        self.launcher = VipGirder(session_name=output_dir)
+        self.launcher = VipGirder(session_name=self.random_session())
 
         # this is for overriding default output to girder 
         self.launcher._OUTPUT_SERVER_NAME = "vip"
@@ -128,11 +131,10 @@ Please, check that have you access to it and pass the credentials to the script 
         for v in inputs.values():
             for url in v:
                 if url.startswith(girder_id):
-                    id = urlparse(url).path.lstrip("/")
+                    id = urlparse(url).netloc.lstrip("/")
                     urls[url] = id
 
         return urls
-        
 
 class LocalReplayer(AbstractReplayer):
     _TREE_FILE = "inputs_tree.txt"
@@ -143,9 +145,10 @@ class LocalReplayer(AbstractReplayer):
         VipSession.init(config.vip_key, vip_portal_url=config.vip_url)
 
     def replay(self, pipeline, data, output_dir):
-        inputs, _ = self.__transform_inputs_to_local(data["inputs"], self.__input_vip(output_dir))
+        session_name = self.random_session()
+        inputs, _ = self.__transform_inputs_to_local(data["inputs"], self.__input_vip(session_name))
 
-        self.launcher = VipSession(output_dir, output_dir=output_dir)
+        self.launcher = VipSession(session_name, output_dir=output_dir)
         self.launcher.upload_inputs(self._INPUT_FOLDER, True)
         self.launcher.launch_pipeline(pipeline, inputs)
         self.launcher.monitor_workflows(5)
@@ -281,12 +284,14 @@ class Runner:
 
 def main():
     parser = ArgumentParser(description="Script used to replay a specific execution on VIP!")
+
+    group = parser.add_mutually_exclusive_group()
     parser.add_argument("descriptor", help="the application boutiques .json file")
-    parser.add_argument("inputs", help="the inputs.json file")
+    parser.add_argument("inputs", help="the workflow-xxxxx.json file")
     parser.add_argument("--vip-key", required=True, help="your vip api key")
     parser.add_argument("--provider-key", help="the api key related to your input provider (ex: girder)")
-    parser.add_argument("--output-folder", help="define where you want your outputs to be (if vip-storage then it will be prefixed by /vip/home/API/)", default=f"relaunch-{str(uuid4())[:8]}")
-    parser.add_argument("--vip-storage", action="store_true", help="store the output on vip output-folder specified instead of local folder")
+    group.add_argument("--output-folder", help="define where you want your outputs to be (if vip-storage, then it won't works)", default=f"outputs/")
+    group.add_argument("--vip-storage", action="store_true", help="store the output on vip output-folder specified instead of local folder")
 
     args = parser.parse_args()
     descriptor_file = FileLoader.load_json(args.descriptor)
