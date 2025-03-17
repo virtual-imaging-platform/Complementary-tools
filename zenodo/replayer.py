@@ -286,7 +286,7 @@ def main():
     parser = ArgumentParser(description="Script used to replay a specific execution on VIP!")
 
     group = parser.add_mutually_exclusive_group()
-    parser.add_argument("descriptor", help="the application boutiques .json file")
+    parser.add_argument("descriptor", help="the application boutiques.json file")
     parser.add_argument("inputs", help="the workflow-xxxxx.json file")
     parser.add_argument("--vip-key", required=True, help="your vip api key")
     parser.add_argument("--provider-key", help="the api key related to your input provider (ex: girder)")
