@@ -120,3 +120,10 @@ file to adapt to your environment (administrator, VO tu use, …).
 
 This is the SELinux security configuration of the server installed by
 the cloud-init file.
+
+## zenodo
+The two scripts, **replayer.py** and **uploader.py**, were developed to address reproducibility concerns.
+
+The *uploader.py script* is designed to be used by an administrator of a **VIP instance** to upload a summary (with or without results) of an execution to Zenodo.
+
+The *replayer.py script* is then used to replay an execution previously uploaded to Zenodo.
