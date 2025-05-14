@@ -2,7 +2,6 @@ import json
 import os
 import sys
 from argparse import ArgumentParser
-from pathlib import PurePath
 from vip_client import VipSession
 from copy import deepcopy
 from vip_client.classes import VipGirder
@@ -67,19 +66,20 @@ class GirderReplayer(AbstractReplayer):
     def replay(self, pipeline, data, output_dir):
         urls = self.extract_girder_links(data["inputs"], data["provider"]["storage_id"])
         inputs = self.transform_inputs(data["inputs"], urls)
-        output_base = PurePath(output_dir).name
         self.local_output = output_dir
-        self.launcher = VipGirder(session_name=self.random_session())
 
-        # this is for overriding default output to girder 
-        self.launcher._OUTPUT_SERVER_NAME = "vip"
-        self.launcher._BACKUP_LOCATION = "vip"
-        self.launcher.launch_pipeline(pipeline, inputs, f"/vip/Home/API/{output_base}")
+        if self.config.use_vip_storage:
+            self.launcher = VipGirder(output_location="vip", session_name=self.random_session())
+        else:
+            self.launcher = VipGirder(output_location="local", output_dir=self.local_output,
+                session_name=self.random_session())
+
+        self.launcher.launch_pipeline(pipeline, inputs)
         self.launcher.monitor_workflows(5)
 
     def finish(self):
         if not self.config.use_vip_storage:
-            self.launcher.download_outputs(self.local_output)
+            self.launcher.download_outputs()
             self.launcher.finish()
             print("Outputs are on your local storage!")
         else:
