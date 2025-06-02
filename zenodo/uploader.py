@@ -54,9 +54,8 @@ class ZenodoUploader:
         logger("grida-out", process.stdout.decode())
         logger("grida-err", process.stderr.decode())
 
-    def download(self, boutique_descriptor: str, invocation_outputs: dict, target_directory: str):
+    def download(self, invocation_outputs: dict, target_directory: str):
         """Download files using grida"""
-        self.__get_file_grida(boutique_descriptor, target_directory)
 
         for subdir, files in invocation_outputs.items():
             target_path = os.path.join(target_directory, subdir)
@@ -136,7 +135,7 @@ def main():
 
     for workflow in data["workflows"]:
         dir = workflow['directory'].replace('file://', '').rstrip('/')
-        zenodo.download(workflow['boutique_descriptor'], workflow['invocation_outputs'], dir)
+        zenodo.download(workflow['invocation_outputs'], dir)
 
     compressed_files = zenodo.compress(os.path.dirname(args.summary))
     zenodo.upload(config["SETTINGS"]["ZENODO_API"], config['SETTINGS']['ACCESS_TOKEN'], compressed_files, metadata)
