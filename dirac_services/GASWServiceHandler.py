@@ -23,7 +23,7 @@ workflowsDict = {}
 def initializeGASWServiceHandler(serviceInfo):
 
     gLogger.info("================================")
-    gLogger.info("= Initializing GASW Service 0.1") 
+    gLogger.info("= Initializing GASW Service 0.1")
     gLogger.info("================================")
     return S_OK()
 
@@ -31,22 +31,22 @@ class GASWServiceHandler( RequestHandler ):
 
     def initialize(self):
         gLogger.info("Initializing Service")
-        
+
     ###########################################################################
-    types_echo = [StringType, StringType, StringType]
-    def export_echo(self, workflowID, jobID, minorStatus):                
+    #types_echo = [StringType, StringType, StringType]
+    def export_echo(self, workflowID, jobID, minorStatus):
         gLogger.info("WorkflowID: " + workflowID)
         if workflowID in workflowsDict:
             connection = workflowsDict[workflowID]
             try:
-                gLogger.info("Received " + jobID + " - " + minorStatus) 
+                gLogger.info("Received " + jobID + " - " + minorStatus)
                 msg = jobID + "###" + minorStatus
                 connection.send(msg + "\n")
             except:
                 connection.close()
                 gLogger.info("Connection lost with " + workflowID)
                 del workflowsDict[workflowID]
-        
+
         return S_OK("OK")
 
 ###########################################################################
@@ -54,10 +54,10 @@ def GASWListener():
     while True:
         clientsocket, address = serversocket.accept()
         data = clientsocket.recv(1024)
-        data = data.rstrip('\n')
+        data = data.rstrip(b'\n')
         workflowsDict[data] = clientsocket
-        gLogger.info("Connection initialized with " + data)
-        
+        gLogger.info(b"Connection initialized with " + data) # b added
+
 ###########################################################################
 
 # Main execution
@@ -66,3 +66,5 @@ serversocket.bind((socket.gethostname(), 50009))
 serversocket.listen(1)
 GASWL = threading.Thread(None, GASWListener)
 GASWL.start()
+
+
