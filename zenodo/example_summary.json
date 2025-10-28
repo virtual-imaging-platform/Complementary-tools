@@ -1,0 +1,42 @@
+{
+    "metadata": {
+        "title": "your title",
+        "upload_type": "workflow",
+        "description": "",
+        "creators": [
+            {
+                "name": "Applications, Sorina"
+            }
+        ]
+    },
+    "workflows": [
+        {
+            "invocation_outputs": {
+                "LCModel-1454163689135": [
+                    "file:/var/www/html/workflows/SharedData/users/admin_test/06-03-2025_091559/test1.RAW--fit_3T_VIP.control.tgz",
+                    "file:/var/www/html/workflows/SharedData/users/admin_test/06-03-2025_091559/test1.RAW--fit_3T_VIP.control.pdf"
+                ]
+            },
+            "provenances_files": [
+                "file:///vip/ReproVip/super_mega_execution/LCModel-1454163689135/LCModel-1454163689135.sh.provenance.json"
+            ],
+            "directory": "file:///vip/ReproVip/super_mega_execution/workflow-58kwrB",
+            "workflowId": "workflow-58kwrB",
+            "boutique_descriptor": "/var/www/html/workflows/SharedData/groups/Support/Applications/LCModel/0.2/json/LCModel.json"
+        },
+        {
+            "invocation_outputs": {
+                "BasicGrepSlowMulti-4500842177408": [
+                    "file:/var/www/html/workflows/SharedData/users/admin_test/05-03-2025_053120/output_out_10.txt",
+                    "file:/var/www/html/workflows/SharedData/users/admin_test/05-03-2025_053120/geneator_out_10.txt"
+                ]
+            },
+            "provenances_files": [
+                "file:///vip/ReproVip/super_mega_execution/BasicGrepSlowMulti-4500842177408/BasicGrepSlowMulti-4500842177408.sh.provenance.json"
+            ],
+            "directory": "file:///vip/ReproVip/super_mega_execution/workflow-jHJFAs",
+            "workflowId": "workflow-jHJFAs",
+            "boutique_descriptor": "/var/www/html/workflows/SharedData/groups/Support/Applications/BasicGrepSlowMulti/0.2/json/BasicGrepSlowMulti.json"
+        }
+    ]
+}
